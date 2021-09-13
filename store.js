@@ -1,10 +1,7 @@
 "use strict";
+const pattern = require("./pattern.js")
+const rewriter = require("./rewriter.js")
 const fs = require("fs")
-
-const PatternCompleteness = {
-    COMPLETE: "COMPLETE",
-    PARTIAL: "PARTIAL"
-}
 
 class Store {
     constructor(file_path){
@@ -41,123 +38,98 @@ class Store {
     }
 
     index(i){
-        if (i < this.storage.values.length) return this.storage.values[i-1]
+        if (i <= this.storage.values.length) return this.storage.values[i-1]
         throw `Index ${i.toString()} is out of bounds`
     }
-}
 
-class ObjectPattern {
-    constructor(pattern, completeness=PatternCompleteness.PARTIAL){
-        this.completeness = completeness
-        this.pattern = pattern
-    }
-
-    matchPartial(data){
-        for(const k in this.pattern){
-            if (!(k in data)) return false
-            const pattern = this.pattern[k]
-            const val = data[k]
-            if (!(pattern instanceof ObjectPattern)) {
-                if (val !== this.pattern[k]) return false
-            }
-            if (!(pattern.match(val))) return false
+    *iterate(){
+        let i = 0
+        while (i < this.storage.values.length){
+            yield this.index(i+1)
+            i++
         }
-        return true
     }
 
-    match(data){
-        if (this.completeness === PatternCompleteness.COMPLETE) return this.matchComplete(data)
-        return this.matchPartial(data)
-    }
-}
-
-class PatternFunction extends ObjectPattern {
-    constructor(f){
-        super(null, null)
-        this.fun = f
-    }
-
-    match(data){
-        return this.fun(data)
-    }
-}
-
-class WholeArrayPattern extends ObjectPattern {
-    constructor(pattern){
-        super(null, null)
-        this.patternVar = pattern
-    }
-
-    match(arr){
-        if (!(Array.isArray(arr))) return false
-        for(const elem of arr){
-            if (!(this.patternVar.match(elem))) return false
+    find(pattern){
+        for(const unit of this.iterate()){
+            if (pattern.match(unit)) return unit
         }
-        return true
-    }
-}
-
-class TuplePattern extends ObjectPattern {
-    constructor(pattern){
-        super(pattern, null)
     }
 
-    match(arr){
-        if (!(Array.isArray(arr))) return false
-        if (!(Array.isArray(this.pattern))) return false
-        if (arr.length !== this.pattern.length) return false
-        for(const i in arr){
-            const pattern = this.pattern[i]
-            const elem = arr[i]
-            if (!(pattern.match(elem))) return false
+    *search(pattern){
+        for(const unit of this.iterate()){
+            if (pattern.match(unit)) yield unit
         }
-        return true
+    }
+
+    persist(){
+        const new_val = this.storage.values.map(JSON.stringify).join("\n") + "\n"
+        fs.writeFile(this.path, new_val, err => {
+            if (err) throw err
+        })
+    }
+
+    rewrite(pattern, rewriter){
+        let i = 0
+        while (i < this.storage.values.length){
+            const val = this.storage.values[i]
+            if (pattern.match(val)) this.storage.values[i] = rewriter.rewrite(val)
+            i++
+        }
+        this.persist()
     }
 }
-
-const Any = () => new PatternFunction(_ => true)
-const Num = (f = _ => true) => new PatternFunction(d => typeof d === "number" && f(d))
-const Str = (f = _ => true) => new PatternFunction(d => typeof d === "string" && f(d))
-const Pattern = pattern => new ObjectPattern(pattern)
-const Arr = patternVar => new WholeArrayPattern(patternVar)
-const Tup = arr => new TuplePattern(arr)
-const Or = (fa, fb) => new PatternFunction(d => fa.match(d) || fb.match(d))
 
 const store = new Store("./db.jarray")
-store.add({
-    name: "Hamid", 
-    age: 21, 
-    favColors: [
-        [0, 128, 0],
-        [165, 42, 42],
-        "Yellow"
-    ]
-})
-store.add({
-    name: "John", 
-    age: 21, 
-    favColors: [
-        [255, 165, 0],
-        [255, 192, 203],
-        "Violet",
-        "Taupe"
-    ]
-})
-
-// const pattern = Pattern({
-//     name: Str(),
-//     age: Num(i => i >= 18),
-//     favColors: Arr(Or(Tup([Num(), Num(), Num()]), Str()))
+// store.add({
+//     name: "Hamid", 
+//     age: 21, 
+//     favColors: [
+//         [0, 128, 0],
+//         [165, 42, 42],
+//         "Yellow"
+//     ]
 // })
 
-// console.log(
-//     pattern.match({
-//         name: "Hamid", 
-//         age: 21, 
-//         favColors: [
-//             [0, 128, 0],
-//             [165, 42, 42],
-//             "yellow"
-//         ]
-//     })
-// )
+// store.add({
+//     name: "John", 
+//     age: 26, 
+//     favColors: [
+//         [255, 165, 0],
+//         [255, 192, 203],
+//         "Violet",
+//         "Taupe"
+//     ]
+// })
+
+// store.add({
+//     name: "Laura", 
+//     age: 12, 
+//     favColors: [
+//         [255, 255, 255],
+//         "Silver",
+//     ]
+// })
+
+// store.add({
+//     name: "Victoria", 
+//     age: 32, 
+//     favColors: [
+//         [128, 0, 128],
+//         [0, 157, 196],
+//     ]
+// })
+
+const adultPattern = pattern.Pattern({
+    name: pattern.Str(),
+    age: pattern.Num(i => i >= 18),
+    favColors: pattern.Arr(pattern.Or(pattern.Tup([pattern.Num(), pattern.Num(), pattern.Num()]), pattern.Str()))
+})
+
+const adultRewriter = rewriter.Rewriter({
+    age: rewriter.Fun(i => i+1),
+    favColors: rewriter.Arr(rewriter.Cond(a => a instanceof Array, rewriter.Arr(rewriter.Fun(a => a+1)), rewriter.Id()))
+})
+
+store.rewrite(adultPattern, adultRewriter)
+for (const unit of store.iterate()) console.log(unit)
