@@ -80,8 +80,71 @@ class Store {
     }
 }
 
-const store = new Store("./db.jarray")
-// store.add({
+
+/*
+for relations like 
+(1, 3)
+(1, 4)
+(3, 4)
+ins will be 
+    {
+        1: [3, 4]
+        3: [4]
+    }
+and outs will be
+    {
+        3: [1]
+        4: [1, 3]
+    }
+outs must always reflect ins, and vice versa.
+*/
+
+class Relations {
+    constructor(name, ins = {}, outs = {}){
+        this.name = name
+        this.ins = ins
+        this.outs = outs
+    }
+
+    connect(v1, v2){
+        if (v1 in this.ins) this.ins[v1].add(v2)
+        else {
+            let set = new Set()
+            set.add(v2)
+            this.ins[v1] = set
+        }
+        if (v2 in this.outs) this.outs[v2].add(v1)
+        else {
+            let set = new Set()
+            set.add(v1)
+            this.outs[v2] = set
+        }
+    }
+
+}
+
+class Graph {
+    constructor(dir){
+        if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }) }
+        this.path = dir + "/store.jarray"
+        this.store = new Store(this.path)
+        this.rel_path = dir + "/relations.csv"
+        this.relations = {}
+    }
+
+    add(obj) { return this.store.add(obj) }
+    index(i) { return this.store.index(i) }
+    rewrite(pattern, rewriter) { return this.store.rewrite(pattern, rewriter) }
+
+    connect(obj1, relation, obj2){
+        if (!(relation in this.relations)) this.relations[relation] = new Relations(relation)
+        this.relations[relation].connect(obj1.__relation_id, obj2.__relation_id)
+        return
+    }
+}
+
+const db = new Graph("./people")
+// db.add({
 //     name: "Hamid", 
 //     age: 21, 
 //     favColors: [
@@ -91,7 +154,7 @@ const store = new Store("./db.jarray")
 //     ]
 // })
 
-// store.add({
+// db.add({
 //     name: "John", 
 //     age: 26, 
 //     favColors: [
@@ -102,7 +165,7 @@ const store = new Store("./db.jarray")
 //     ]
 // })
 
-// store.add({
+// db.add({
 //     name: "Laura", 
 //     age: 12, 
 //     favColors: [
@@ -111,7 +174,7 @@ const store = new Store("./db.jarray")
 //     ]
 // })
 
-// store.add({
+// db.add({
 //     name: "Victoria", 
 //     age: 32, 
 //     favColors: [
@@ -120,16 +183,19 @@ const store = new Store("./db.jarray")
 //     ]
 // })
 
-const adultPattern = pattern.Pattern({
+db.rewrite(pattern.Pattern({
     name: pattern.Str(),
     age: pattern.Num(i => i >= 18),
     favColors: pattern.Arr(pattern.Or(pattern.Tup([pattern.Num(), pattern.Num(), pattern.Num()]), pattern.Str()))
-})
-
-const adultRewriter = rewriter.Rewriter({
+}), rewriter.Rewriter({
     age: rewriter.Fun(i => i+1),
     favColors: rewriter.Arr(rewriter.Cond(a => a instanceof Array, rewriter.Arr(rewriter.Fun(a => a+1)), rewriter.Id()))
-})
+}))
 
-store.rewrite(adultPattern, adultRewriter)
-for (const unit of store.iterate()) console.log(unit)
+db.connect(db.index(1), "follows", db.index(3))
+db.connect(db.index(1), "follows", db.index(4))
+db.connect(db.index(3), "follows", db.index(4))
+
+for (const unit of db.store.iterate()) console.log(unit)
+console.log(db.relations["follows"].ins)
+console.log(db.relations["follows"].outs)
