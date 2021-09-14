@@ -121,6 +121,17 @@ class Relations {
         }
     }
 
+    existsDirectRelation(v1, v2){ return v1 in this.ins && this.ins[v1].has(v2) }
+
+    toCSV(){
+        const set = Set()
+        for(const k in this.ins){
+            const val = this.ins[k]
+            set.add(val.map(a => [k, this.name, a]))
+        }
+        return arr.map(singleRelation => singleRelation.map(a => a.toString()).join(", ")).join("\n") + "\n"
+    }
+
 }
 
 class Graph {
@@ -130,16 +141,42 @@ class Graph {
         this.store = new Store(this.path)
         this.rel_path = dir + "/relations.csv"
         this.relations = {}
+        this.haveRelations(this.rel_path)
+    }
+
+    haveRelations(path){
+        if (!fs.existsSync(path)) {
+            fs.open(path, 'w', (err, _) => {
+                if (err) throw err
+            })
+            return
+        }
+        for(const val of fs.readFileSync(path).toString().split("\n")){
+            if (val === "") continue
+            const [a, rel, b] = val.split(", ")
+            this.connectIds(parseInt(a), rel, parseInt(b), false)
+        }
     }
 
     add(obj) { return this.store.add(obj) }
     index(i) { return this.store.index(i) }
     rewrite(pattern, rewriter) { return this.store.rewrite(pattern, rewriter) }
 
-    connect(obj1, relation, obj2){
+    persistentPush(a, rel, b){
+        fs.appendFile(this.rel_path, `${a.toString()}, ${rel}, ${b.toString()}` + "\n", err => {
+            if (err) throw err;
+        });
+    }
+
+    connect(obj1, relation, obj2, __shouldPersistentPush=true){
+        this.connectIds(obj1.__relation_id, relation, obj2.__relation_id, __shouldPersistentPush)
+    }
+
+    connectIds(id1, relation, id2, __shouldPersistentPush=true){
         if (!(relation in this.relations)) this.relations[relation] = new Relations(relation)
-        this.relations[relation].connect(obj1.__relation_id, obj2.__relation_id)
-        return
+        if (this.relations[relation].existsDirectRelation(id1, id2)) return
+        this.relations[relation].connect(id1, id2)
+        if (__shouldPersistentPush) this.persistentPush(id1, relation, id2)
     }
 }
 
