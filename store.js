@@ -102,31 +102,31 @@ outs must always reflect ins, and vice versa.
 class Relations {
     constructor(name, ins = {}, outs = {}){
         this.name = name
-        this.ins = ins
-        this.outs = outs
+        this.rels = ins
+        this.invs = outs
     }
 
     connect(v1, v2){
-        if (v1 in this.ins) this.ins[v1].add(v2)
+        if (v1 in this.rels) this.rels[v1].add(v2)
         else {
             let set = new Set()
             set.add(v2)
-            this.ins[v1] = set
+            this.rels[v1] = set
         }
-        if (v2 in this.outs) this.outs[v2].add(v1)
+        if (v2 in this.invs) this.invs[v2].add(v1)
         else {
             let set = new Set()
             set.add(v1)
-            this.outs[v2] = set
+            this.invs[v2] = set
         }
     }
 
-    existsDirectRelation(v1, v2){ return v1 in this.ins && this.ins[v1].has(v2) }
+    existsDirectRelation(v1, v2){ return v1 in this.rels && this.rels[v1].has(v2) }
 
     toCSV(){
         const set = Set()
-        for(const k in this.ins){
-            const val = this.ins[k]
+        for(const k in this.rels){
+            const val = this.rels[k]
             set.add(val.map(a => [k, this.name, a]))
         }
         return arr.map(singleRelation => singleRelation.map(a => a.toString()).join(", ")).join("\n") + "\n"
@@ -168,8 +168,26 @@ class Graph {
         });
     }
 
+    findRelation(rel){
+        return this.relations[rel]
+    }
+
     connect(obj1, relation, obj2, __shouldPersistentPush=true){
         this.connectIds(obj1.__relation_id, relation, obj2.__relation_id, __shouldPersistentPush)
+    }
+
+    link(p1, rel, p2, __shouldPersistentPush=true){
+        const obj1 = this.store.find(p1)
+        const obj2 = this.store.find(p2)
+        this.connect(obj1, rel, obj2, __shouldPersistentPush)
+    }
+
+    linkAll(p1, rel, p2){
+        for (const obj1 of this.store.search(p1)){
+            for (const obj2 of this.store.search(p2)){
+                this.connect(obj1, rel, obj2)
+            }
+        }
     }
 
     connectIds(id1, relation, id2, __shouldPersistentPush=true){
@@ -229,10 +247,10 @@ db.rewrite(pattern.Pattern({
     favColors: rewriter.Arr(rewriter.Cond(a => a instanceof Array, rewriter.Arr(rewriter.Fun(a => a+1)), rewriter.Id()))
 }))
 
-db.connect(db.index(1), "follows", db.index(3))
-db.connect(db.index(1), "follows", db.index(4))
-db.connect(db.index(3), "follows", db.index(4))
+db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Laura"}))
+db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
+db.link(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
 
 for (const unit of db.store.iterate()) console.log(unit)
-console.log(db.relations["follows"].ins)
-console.log(db.relations["follows"].outs)
+console.log(db.relations["follows"].rels)
+console.log(db.relations["follows"].invs)
