@@ -169,6 +169,7 @@ class Graph {
     }
 
     findRelation(rel){
+        if (!(rel in this.relations)) return null
         return this.relations[rel]
     }
 
@@ -195,6 +196,44 @@ class Graph {
         if (this.relations[relation].existsDirectRelation(id1, id2)) return
         this.relations[relation].connect(id1, id2)
         if (__shouldPersistentPush) this.persistentPush(id1, relation, id2)
+    }
+
+    query(){
+        return new Query(this)
+    }
+}
+
+class Query {
+    constructor(graph){
+        this.graph = graph
+        this.generator = null
+    }
+
+    v(vertexPattern){
+        const self = this
+        const query = new Query(this.graph)
+        query.generator = function*() {
+            yield* self.graph.store.search(vertexPattern)
+        }
+        return query
+    }
+
+    outs(rel){
+        const self = this
+        const query = new Query(this.graph)
+        query.generator = function*() {
+            for(const vertex of self.generator()){
+                const relation = self.graph.findRelation(rel)
+                if (relation === null) continue
+                if(!(vertex.__relation_id in relation.rels)) continue
+                for(const related_vertex of relation.rels[vertex.__relation_id]) yield self.graph.store.index(related_vertex)
+            }
+        }
+        return query
+    }
+
+    *execute(){
+        yield* this.generator()
     }
 }
 
@@ -251,6 +290,8 @@ db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Lau
 db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
 db.link(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
 
-for (const unit of db.store.iterate()) console.log(unit)
-console.log(db.relations["follows"].rels)
-console.log(db.relations["follows"].invs)
+// for (const unit of db.store.iterate()) console.log(unit)
+
+const query = db.query().v(pattern.Pattern({name: "Hamid"})).outs("follows").outs("follows")
+
+for(const unit of query.execute()) console.log(unit)
