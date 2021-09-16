@@ -104,13 +104,13 @@ class RecordFiles {
     }
 }
 
-const record = new RecordFiles("./files", 21)
-for(let i = 0; i < 100; i++){
-    record.add({x: i+1})
-}
+// const record = new RecordFiles("./files", 21)
+// for(let i = 0; i < 100; i++){
+//     record.add({x: i+1})
+// }
 
 // record.rewrite(pattern.Pattern({x: pattern.Num(x => x > 50)}), rewriter.Rewriter({x: rewriter.Fun(x => x * 10)}))
 
-// console.log(record.index(18))
+// console.log(record.index(180))
 
 module.exports = {RecordFiles}

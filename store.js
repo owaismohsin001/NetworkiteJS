@@ -174,7 +174,7 @@ class Query {
         return query
     }
 
-    ins(rel){
+    outs(rel){
         const self = this
         const query = new Query(this.graph)
         query.generator = function*() {
@@ -248,6 +248,6 @@ db.link(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Vic
 
 // for (const unit of db.store.iterate()) console.log(unit)
 
-const query = db.query().v(pattern.Pattern({name: "Hamid"})).ins("follows").ins("follows")
+const query = db.query().v(pattern.Pattern({name: "Hamid"})).outs("follows").outs("follows")
 
 for(const unit of query.execute()) console.log(unit)
