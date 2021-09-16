@@ -1,54 +1,25 @@
 "use strict";
 const pattern = require("./pattern.js")
 const rewriter = require("./rewriter.js")
+const {RecordFiles} = require("./multifileRecord.js")
 const fs = require("fs")
 
+const IS_DEV = (process.env.NODE_ENV || 'development') == 'development'
+
 class Store {
-    constructor(file_path){
-        this.storage = {values: []}
+    constructor(file_path, pageSize=null){
+        this.storage = new RecordFiles(file_path, pageSize===null ? (IS_DEV ? 10 : 1000) : pageSize)
         this.path = file_path
-        this.haveFile(file_path)
-    }
-
-    haveFile(path){
-        if (!fs.existsSync(path)) {
-            fs.open(path, 'w', (err, _) => {
-                if (err) throw err
-            })
-            return
-        }
-        const contentArray = fs.readFileSync(path).toString().split("\n")
-        for(const val of contentArray){
-            if (val === "") continue
-            this.storage.values.push(JSON.parse(val))
-        }
-    }
-
-    presistentPush(obj){
-        fs.appendFile(this.path, JSON.stringify(obj) + "\n", err => {
-            if (err) throw err;
-        });
     }
 
     add(obj){
-        const new_obj = {...obj, __relation_id: this.storage.values.length+1}
-        this.storage.values.push(new_obj)
-        this.presistentPush(new_obj)
+        this.storage.add(obj)
         return obj
     }
 
-    index(i){
-        if (i <= this.storage.values.length) return this.storage.values[i-1]
-        throw `Index ${i.toString()} is out of bounds`
-    }
+    index(i){ return this.storage.index(i) }
 
-    *iterate(){
-        let i = 0
-        while (i < this.storage.values.length){
-            yield this.index(i+1)
-            i++
-        }
-    }
+    *iterate(){ yield* this.storage.iterate() }
 
     find(pattern){
         for(const unit of this.iterate()){
@@ -62,22 +33,7 @@ class Store {
         }
     }
 
-    persist(){
-        const new_val = this.storage.values.map(JSON.stringify).join("\n") + "\n"
-        fs.writeFile(this.path, new_val, err => {
-            if (err) throw err
-        })
-    }
-
-    rewrite(pattern, rewriter){
-        let i = 0
-        while (i < this.storage.values.length){
-            const val = this.storage.values[i]
-            if (pattern.match(val)) this.storage.values[i] = rewriter.rewrite(val)
-            i++
-        }
-        this.persist()
-    }
+    rewrite(pattern, rewriter){ this.storage.rewrite(pattern, rewriter) }
 }
 
 
@@ -137,7 +93,7 @@ class Relations {
 class Graph {
     constructor(dir){
         if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }) }
-        this.path = dir + "/store.jarray"
+        this.path = dir + "/store"
         this.store = new Store(this.path)
         this.rel_path = dir + "/relations.csv"
         this.relations = {}
@@ -218,7 +174,7 @@ class Query {
         return query
     }
 
-    outs(rel){
+    ins(rel){
         const self = this
         const query = new Query(this.graph)
         query.generator = function*() {
@@ -292,6 +248,6 @@ db.link(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Vic
 
 // for (const unit of db.store.iterate()) console.log(unit)
 
-const query = db.query().v(pattern.Pattern({name: "Hamid"})).outs("follows").outs("follows")
+const query = db.query().v(pattern.Pattern({name: "Hamid"})).ins("follows").ins("follows")
 
 for(const unit of query.execute()) console.log(unit)
