@@ -42,14 +42,16 @@ for relations like
 (1, 3)
 (1, 4)
 (3, 4)
+(4, 3)
 ins will be 
     {
         1: [3, 4]
         3: [4]
+        4: [3]
     }
 and outs will be
     {
-        3: [1]
+        3: [1, 4]
         4: [1, 3]
     }
 outs must always reflect ins, and vice versa.
@@ -188,6 +190,20 @@ class Query {
         return query
     }
 
+    ins(rel){
+        const self = this
+        const query = new Query(this.graph)
+        query.generator = function*() {
+            for(const vertex of self.generator()){
+                const relation = self.graph.findRelation(rel)
+                if (relation === null) continue
+                if(!(vertex.__relation_id in relation.invs)) continue
+                for(const related_vertex of relation.invs[vertex.__relation_id]) yield self.graph.store.index(related_vertex)
+            }
+        }
+        return query
+    }
+
     *execute(){
         yield* this.generator()
     }
@@ -245,9 +261,10 @@ db.rewrite(pattern.Pattern({
 db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Laura"}))
 db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
 db.link(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
+db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "Laura"}))
 
 // for (const unit of db.store.iterate()) console.log(unit)
 
-const query = db.query().v(pattern.Pattern({name: "Hamid"})).outs("follows").outs("follows")
+const query = db.query().v(pattern.Pattern({name: "Hamid"})).outs("follows").ins("follows")
 
 for(const unit of query.execute()) console.log(unit)
