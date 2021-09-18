@@ -217,6 +217,17 @@ class Query {
         return query
     }
 
+    filter(pattern){
+        const self = this
+        const query = new Query(this.graph)
+        query.generator = function*() {
+            for(const vertex of self.generator()){
+                if (pattern.match(vertex)) yield vertex
+            }
+        }
+        return query
+    }
+
     *execute(){
         yield* this.generator()
     }
@@ -278,6 +289,10 @@ db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "
 
 // for (const unit of db.store.iterate()) console.log(unit)
 
-const query = db.query().v(pattern.Pattern({name: "Hamid"})).outs("follows").ins("follows").unique()
+const query = db.query().v(pattern.Pattern({name: "Hamid"}))
+    .outs("follows")
+    .ins("follows")
+    .filter(pattern.Pattern({age: pattern.Num(i => i > 18)}))
+    .unique()
 
 for(const unit of query.execute()) console.log(unit)
