@@ -164,7 +164,7 @@ class Graph {
 class Query {
     constructor(graph){
         this.graph = graph
-        this.generator = null
+        this.generator = function*() { yield* graph.store.iterate() }
     }
 
     v(vertexPattern){
@@ -199,6 +199,19 @@ class Query {
                 if (relation === null) continue
                 if(!(vertex.__relation_id in relation.invs)) continue
                 for(const related_vertex of relation.invs[vertex.__relation_id]) yield self.graph.store.index(related_vertex)
+            }
+        }
+        return query
+    }
+
+    unique(){
+        const self = this
+        const query = new Query(this.graph)
+        query.generator = function*() {
+            const set = new Set()
+            for(const vertex of self.generator()){
+                if (!(set.has(JSON.stringify(vertex)))) yield vertex
+                set.add(JSON.stringify(vertex))
             }
         }
         return query
@@ -265,6 +278,6 @@ db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "
 
 // for (const unit of db.store.iterate()) console.log(unit)
 
-const query = db.query().v(pattern.Pattern({name: "Hamid"})).outs("follows").ins("follows")
+const query = db.query().v(pattern.Pattern({name: "Hamid"})).outs("follows").ins("follows").unique()
 
 for(const unit of query.execute()) console.log(unit)
