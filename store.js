@@ -164,7 +164,35 @@ class Graph {
 class Query {
     constructor(graph){
         this.graph = graph
-        this.generator = function*() { yield* graph.store.iterate() }
+        const self = this
+        this.generator = function*() {
+            const set = new Set()
+            for(const rel in graph.relations) {
+                const rel_graph = graph.relations[rel]
+                for(const k of this.dfs(rel_graph.rels)){
+                    if (set.has(k)) continue
+                    else {
+                        yield self.graph.store.index(k)
+                        set.add(k)
+                    }
+                }
+            }
+        }
+    }
+
+    *dfs(single_graph, visited=new Set()){
+        for(const k in single_graph){
+            const values = single_graph[k]
+            if (visited.has(k)) continue
+            visited.add(k)
+            yield k
+            const arr_values = [...values].filter(v => !visited.has(v))
+            if (arr_values.length != 0) {
+                for(const v of arr_values){
+                    this.dfs(v, visited)
+                }
+            }
+        }
     }
 
     v(vertexPattern){
@@ -176,7 +204,7 @@ class Query {
         return query
     }
 
-    outs(rel){
+    outs(rel, given_pattern=pattern.Pattern({})){
         const self = this
         const query = new Query(this.graph)
         query.generator = function*() {
@@ -184,13 +212,16 @@ class Query {
                 const relation = self.graph.findRelation(rel)
                 if (relation === null) continue
                 if(!(vertex.__relation_id in relation.rels)) continue
-                for(const related_vertex of relation.rels[vertex.__relation_id]) yield self.graph.store.index(related_vertex)
+                for(const related_vertex of relation.rels[vertex.__relation_id]) {
+                    const related_node = self.graph.store.index(related_vertex)
+                    if (given_pattern.match(related_node)) yield related_node
+                }
             }
         }
         return query
     }
 
-    ins(rel){
+    ins(rel, given_pattern=pattern.Pattern({})){
         const self = this
         const query = new Query(this.graph)
         query.generator = function*() {
@@ -198,7 +229,10 @@ class Query {
                 const relation = self.graph.findRelation(rel)
                 if (relation === null) continue
                 if(!(vertex.__relation_id in relation.invs)) continue
-                for(const related_vertex of relation.invs[vertex.__relation_id]) yield self.graph.store.index(related_vertex)
+                for(const related_vertex of relation.invs[vertex.__relation_id]) {
+                    const related_node = self.graph.store.index(related_vertex)
+                    if (given_pattern.match(related_node)) yield related_node
+                }
             }
         }
         return query
@@ -289,7 +323,8 @@ db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "
 
 // for (const unit of db.store.iterate()) console.log(unit)
 
-const query = db.query().v(pattern.Pattern({name: "Hamid"}))
+const query = db.query()
+    .v(pattern.Pattern({name: "Hamid"}))
     .outs("follows")
     .ins("follows")
     .filter(pattern.Pattern({age: pattern.Num(i => i > 18)}))
