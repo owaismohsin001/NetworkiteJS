@@ -90,6 +90,42 @@ class Relations {
         return arr.map(singleRelation => singleRelation.map(a => a.toString()).join(", ")).join("\n") + "\n"
     }
 
+    edges(){
+        const full_graph = {...this.rels, ...this.invs}
+        const keys = new Set()
+        for(const k in full_graph) keys.add(k)
+        return keys
+    }
+
+    *dfs(node){
+        const [rel_graph, inv_graph] = [this.rels, this.invs]
+        function *single_dfs(single_graph, node, visited){
+            if (!(visited.has(node))){
+                yield node
+                visited.add(node)
+                if (node in single_graph){
+                    const values = single_graph[node]
+                    for(const v of values){
+                        yield* single_dfs(single_graph, v, visited)
+                    }
+                }
+            }
+        }
+
+        const visited = new Set()
+        function *overSingleDFS(graph){
+            for(const v of single_dfs(graph, node, visited)) {
+                const intV = parseInt(v)
+                if (!(visited.has(intV))) {
+                    yield intV
+                    visited.add(intV)
+                }
+            }
+        }
+
+        yield* overSingleDFS(visited, rel_graph)
+        yield* overSingleDFS(visited, inv_graph)
+    }
 }
 
 class Graph {
@@ -168,28 +204,16 @@ class Query {
         this.generator = function*() {
             const set = new Set()
             for(const rel in graph.relations) {
-                const rel_graph = graph.relations[rel]
-                for(const k of this.dfs(rel_graph.rels)){
-                    if (set.has(k)) continue
-                    else {
-                        yield self.graph.store.index(k)
-                        set.add(k)
+                const whole_graph = graph.relations[rel]
+                const keys = whole_graph.edges()
+                for(const k of keys.values()){
+                    for(const v of whole_graph.dfs(k)){
+                        const intV = parseInt(v)
+                        if (!(set.has(intV))) {
+                            set.add(intV)
+                            yield self.graph.store.index(intV)
+                        }
                     }
-                }
-            }
-        }
-    }
-
-    *dfs(single_graph, visited=new Set()){
-        for(const k in single_graph){
-            const values = single_graph[k]
-            if (visited.has(k)) continue
-            visited.add(k)
-            yield k
-            const arr_values = [...values].filter(v => !visited.has(v))
-            if (arr_values.length != 0) {
-                for(const v of arr_values){
-                    this.dfs(v, visited)
                 }
             }
         }
