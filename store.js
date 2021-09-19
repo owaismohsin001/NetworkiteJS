@@ -97,7 +97,7 @@ class Relations {
         return keys
     }
 
-    *dfs(node){
+    *dfs(node, rel=true, inv=true){
         const [rel_graph, inv_graph] = [this.rels, this.invs]
         function *single_dfs(single_graph, node, visited){
             if (!(visited.has(node))){
@@ -123,8 +123,8 @@ class Relations {
             }
         }
 
-        yield* overSingleDFS(visited, rel_graph)
-        yield* overSingleDFS(visited, inv_graph)
+        if (rel) yield* overSingleDFS(visited, rel_graph)
+        if (inv) yield* overSingleDFS(visited, inv_graph)
     }
 }
 
@@ -208,10 +208,9 @@ class Query {
                 const keys = whole_graph.edges()
                 for(const k of keys.values()){
                     for(const v of whole_graph.dfs(k)){
-                        const intV = parseInt(v)
-                        if (!(set.has(intV))) {
-                            set.add(intV)
-                            yield self.graph.store.index(intV)
+                        if (!(set.has(v))) {
+                            set.add(v)
+                            yield self.graph.store.index(v)
                         }
                     }
                 }
