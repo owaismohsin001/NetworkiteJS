@@ -43,16 +43,18 @@ for relations like
 (1, 4)
 (3, 4)
 (4, 3)
+(4, 2)
 ins will be 
     {
         1: [3, 4]
         3: [4]
-        4: [3]
+        4: [3, 2]
     }
 and outs will be
     {
         3: [1, 4]
         4: [1, 3]
+        2: [4]
     }
 outs must always reflect ins, and vice versa.
 */
@@ -123,8 +125,40 @@ class Relations {
             }
         }
 
-        if (rel) yield* overSingleDFS(visited, rel_graph)
-        if (inv) yield* overSingleDFS(visited, inv_graph)
+        if (rel) yield* overSingleDFS(rel_graph)
+        if (inv) yield* overSingleDFS(inv_graph)
+    }
+
+    relatesTo(node, p, rel=true, inv=true){
+        const [rel_graph, inv_graph] = [this.rels, this.invs]
+        function single_dfs(single_graph, node, visited){
+            if (p(node)) return true
+            if (visited.has(node)) return false
+            visited.add(node)
+            if (node in single_graph){
+                const values = single_graph[node]
+                if ([...values].filter(node => p(node)).length > 0) return true
+                let found = false
+                for(const v of values){
+                    found = single_dfs(single_graph, v, visited)
+                    if (found) break
+                }
+                return found
+            }
+            return false
+        }
+
+        const visited = new Set()
+        function overSingleDFS(graph){
+            return single_dfs(graph, node, visited)
+        }
+
+        let retBool
+        if (rel) retBool = overSingleDFS(rel_graph)
+        if (inv) {
+            if (!retBool) return overSingleDFS(inv_graph)
+        }
+        return retBool
     }
 }
 
@@ -197,6 +231,12 @@ class Graph {
     }
 }
 
+const DFSSide = {
+    BOTH: "BOTH",
+    OUTGONG: "OUTGOING",
+    INCOMING: "INCOMING"
+}
+
 class Query {
     constructor(graph){
         this.graph = graph
@@ -223,6 +263,30 @@ class Query {
         const query = new Query(this.graph)
         query.generator = function*() {
             yield* self.graph.store.search(vertexPattern)
+        }
+        return query
+    }
+
+    boolStateFromDFSSide(side){
+        let [incoming, outgoing] = [false, false]
+        if (side === DFSSide.BOTH) return [true, true]
+        if (side === DFSSide.INCOMING) incoming = true
+        if (side === DFSSide.OUTGONG) outgoing = true
+        return [incoming, outgoing]
+    }
+
+    dfs(rel, side=DFSSide.BOTH){
+        const self = this
+        const query = new Query(this.graph)
+        const [incoming, outgoing] = this.boolStateFromDFSSide(side)
+        query.generator = function*(){
+            for(const vertex of self.generator()){
+                const relation = self.graph.findRelation(rel)
+                if (relation === null) continue
+                for(const related_vertex of relation.dfs(vertex.__relation_id, outgoing, incoming)) {
+                    yield self.graph.store.index(related_vertex)
+                }
+            }
         }
         return query
     }
@@ -280,6 +344,24 @@ class Query {
         query.generator = function*() {
             for(const vertex of self.generator()){
                 if (pattern.match(vertex)) yield vertex
+            }
+        }
+        return query
+    }
+
+    relatesTo(rel, given_pattern, side=DFSSide.BOTH){
+        const self = this
+        const query = new Query(this.graph)
+        const [incoming, outgoing] = this.boolStateFromDFSSide(side)
+        query.generator = function*() {
+            for(const vertex of self.generator()){
+                const relation = self.graph.findRelation(rel)
+                if (relation === null) continue
+                if (relation.relatesTo(
+                        vertex.__relation_id, 
+                        i => given_pattern.match(self.graph.store.index(i)), 
+                        outgoing, incoming
+                    )) yield vertex
             }
         }
         return query
@@ -343,6 +425,7 @@ db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Lau
 db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
 db.link(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
 db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "Laura"}))
+db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "John"}))
 
 // for (const unit of db.store.iterate()) console.log(unit)
 
@@ -351,6 +434,7 @@ const query = db.query()
     .outs("follows")
     .ins("follows")
     .filter(pattern.Pattern({age: pattern.Num(i => i > 18)}))
+    .relatesTo("follows", pattern.Pattern({name: "John"}), DFSSide.OUTGONG)
     .unique()
 
 for(const unit of query.execute()) console.log(unit)
