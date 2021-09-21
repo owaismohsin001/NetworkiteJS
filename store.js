@@ -2,6 +2,7 @@
 const pattern = require("./pattern.js")
 const rewriter = require("./rewriter.js")
 const {RecordFiles} = require("./multifileRecord.js")
+const {KeyStore} = require("./keyStore.js")
 const fs = require("fs")
 
 const IS_DEV = (process.env.NODE_ENV || 'development') == 'development'
@@ -97,6 +98,16 @@ class Relations {
         return [...set].map(singleRelation => singleRelation.map(a => a.toString()).join(", ")).join("\n")
     }
 
+    static fromCSV(name, str){
+        const self = new Relations(name)
+        for(const val of str.split("\n")){
+            if (val === "") continue
+            const [a, _, b] = val.split(", ")
+            self.connect(parseInt(a), parseInt(b))
+        }
+        return self
+    }
+
     edges(){
         const full_graph = {...this.rels, ...this.invs}
         const keys = new Set()
@@ -170,25 +181,14 @@ class Relations {
 class Graph {
     constructor(dir){
         if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }) }
+        this.dir = dir
         this.path = dir + "/store"
         this.store = new Store(this.path)
-        this.rel_path = dir + "/relations.csv"
-        this.relations = {}
-        this.haveRelations(this.rel_path)
+        this.relations = this.haveRelations(dir)
     }
 
-    haveRelations(path){
-        if (!fs.existsSync(path)) {
-            fs.open(path, 'w', (err, _) => {
-                if (err) throw err
-            })
-            return
-        }
-        for(const val of fs.readFileSync(path).toString().split("\n")){
-            if (val === "") continue
-            const [a, rel, b] = val.split(", ")
-            this.connectIds(parseInt(a), rel, parseInt(b), false)
-        }
+    haveRelations(dir){
+        return new KeyStore(dir, (n, s) => Relations.fromCSV(n, s), (rel, a, b) => `${a}, ${rel}, ${b}`, s => s.toCSV() + "\n")
     }
 
     add(obj) { return this.store.add(obj) }
@@ -200,22 +200,23 @@ class Graph {
     }
 
     findRelation(rel){
-        if (!(rel in this.relations)) return null
-        return this.relations[rel]
+        if (!(this.relations.has(rel))) return null
+        const d = this.relations.get(rel)
+        return this.relations.get(rel)
     }
 
-    connect(obj1, relation, obj2, __shouldPersistentPush=true){
-        this.connectIds(obj1.__relation_id, relation, obj2.__relation_id, __shouldPersistentPush)
+    connect(obj1, relation, obj2){
+        this.connectIds(obj1.__relation_id, relation, obj2.__relation_id)
     }
 
     disconnect(obj1, relation, obj2){
         this.disconnectIds(obj1.__relation_id, relation, obj2.__relation_id)
     }
 
-    link(p1, rel, p2, __shouldPersistentPush=true){
+    link(p1, rel, p2){
         const obj1 = this.store.find(p1)
         const obj2 = this.store.find(p2)
-        this.connect(obj1, rel, obj2, __shouldPersistentPush)
+        this.connect(obj1, rel, obj2)
     }
 
     unlink(p1, rel, p2){
@@ -240,27 +241,18 @@ class Graph {
         }
     }
 
-    connectIds(id1, relation, id2, __shouldPersistentPush=true){
-        if (!(relation in this.relations)) this.relations[relation] = new Relations(relation)
-        if (this.relations[relation].existsDirectRelation(id1, id2)) return
-        this.relations[relation].connect(id1, id2)
-        if (__shouldPersistentPush) this.persistentPush(id1, relation, id2)
+    connectIds(id1, relation, id2){
+        if (!(this.relations.has(relation))) this.relations.newRelation(relation)
+        if (this.findRelation(relation).existsDirectRelation(id1, id2)) return
+        this.relations.addPair(relation, id1, id2)
     }
 
-    persist(){
-        const strs = []
-        for(const k in this.relations){
-            const rel = this.relations[k]
-            strs.push(rel.toCSV())
-        }
-        fs.writeFileSync(this.rel_path, strs.join("\n") + "\n", {encoding:'utf8',flag:'w'})
-    }
-
-    disconnectIds(id1, relation, id2){
-        if (!(relation in this.relations)) return
-        if (!(this.relations[relation].existsDirectRelation(id1, id2))) return
-        this.relations[relation].disconnect(id1, id2)
-        this.persist()
+    disconnectIds(id1, rel, id2){
+        if (!(this.relations.has(rel))) return
+        if (!(this.findRelation(rel).existsDirectRelation(id1, id2))) return
+        const relation = this.relations.get(rel)
+        relation.disconnect(id1, id2)
+        this.relations.set(rel, relation)
     }
 
     query(){
@@ -281,7 +273,7 @@ class Query {
         this.generator = function*() {
             const set = new Set()
             for(const rel in graph.relations) {
-                const whole_graph = graph.relations[rel]
+                const whole_graph = graph.findRelation(rel)
                 const keys = whole_graph.edges()
                 for(const k of keys.values()){
                     for(const v of whole_graph.dfs(k)){
