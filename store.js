@@ -262,7 +262,16 @@ class Query {
         const self = this
         const query = new Query(this.graph)
         query.generator = function*() {
-            yield* self.graph.store.search(vertexPattern)
+            yield self.graph.store.find(vertexPattern)
+        }
+        return query
+    }
+
+    vs(vertexPattern){
+        const self = this
+        const query = new Query(this.graph)
+        query.generator = function*() {
+            yield* self.graph.store.iterate(vertexPattern)
         }
         return query
     }
