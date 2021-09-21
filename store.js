@@ -81,15 +81,20 @@ class Relations {
         }
     }
 
+    disconnect(v1, v2){
+        if (v1 in this.rels) this.rels[v1].delete(v2)
+        if (v2 in this.invs) this.invs[v2].delete(v1)
+    }
+
     existsDirectRelation(v1, v2){ return v1 in this.rels && this.rels[v1].has(v2) }
 
     toCSV(){
-        const set = Set()
+        const set = new Set()
         for(const k in this.rels){
             const val = this.rels[k]
-            set.add(val.map(a => [k, this.name, a]))
+            const _ = [...val].map(a => set.add([k, this.name, a]))
         }
-        return arr.map(singleRelation => singleRelation.map(a => a.toString()).join(", ")).join("\n") + "\n"
+        return [...set].map(singleRelation => singleRelation.map(a => a.toString()).join(", ")).join("\n")
     }
 
     edges(){
@@ -191,9 +196,7 @@ class Graph {
     rewrite(pattern, rewriter) { return this.store.rewrite(pattern, rewriter) }
 
     persistentPush(a, rel, b){
-        fs.appendFile(this.rel_path, `${a.toString()}, ${rel}, ${b.toString()}` + "\n", err => {
-            if (err) throw err;
-        });
+        fs.appendFileSync(this.rel_path, `${a.toString()}, ${rel}, ${b.toString()}\n`)
     }
 
     findRelation(rel){
@@ -205,10 +208,20 @@ class Graph {
         this.connectIds(obj1.__relation_id, relation, obj2.__relation_id, __shouldPersistentPush)
     }
 
+    disconnect(obj1, relation, obj2){
+        this.disconnectIds(obj1.__relation_id, relation, obj2.__relation_id)
+    }
+
     link(p1, rel, p2, __shouldPersistentPush=true){
         const obj1 = this.store.find(p1)
         const obj2 = this.store.find(p2)
         this.connect(obj1, rel, obj2, __shouldPersistentPush)
+    }
+
+    unlink(p1, rel, p2){
+        const obj1 = this.store.find(p1)
+        const obj2 = this.store.find(p2)
+        this.disconnect(obj1, rel, obj2)
     }
 
     linkAll(p1, rel, p2){
@@ -219,11 +232,35 @@ class Graph {
         }
     }
 
+    unlinkAll(p1, rel, p2){
+        for (const obj1 of this.store.search(p1)){
+            for (const obj2 of this.store.search(p2)){
+                this.disconnect(obj1, rel, obj2)
+            }
+        }
+    }
+
     connectIds(id1, relation, id2, __shouldPersistentPush=true){
         if (!(relation in this.relations)) this.relations[relation] = new Relations(relation)
         if (this.relations[relation].existsDirectRelation(id1, id2)) return
         this.relations[relation].connect(id1, id2)
         if (__shouldPersistentPush) this.persistentPush(id1, relation, id2)
+    }
+
+    persist(){
+        const strs = []
+        for(const k in this.relations){
+            const rel = this.relations[k]
+            strs.push(rel.toCSV())
+        }
+        fs.writeFileSync(this.rel_path, strs.join("\n") + "\n", {encoding:'utf8',flag:'w'})
+    }
+
+    disconnectIds(id1, relation, id2){
+        if (!(relation in this.relations)) return
+        if (!(this.relations[relation].existsDirectRelation(id1, id2))) return
+        this.relations[relation].disconnect(id1, id2)
+        this.persist()
     }
 
     query(){
