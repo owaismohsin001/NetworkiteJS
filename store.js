@@ -346,6 +346,20 @@ class Query {
         return query
     }
 
+    take(n){
+        const self = this
+        const query = new Query(this.graph)
+        let i = 0
+        query.generator = function*(){
+            for(const node of self.generator()){
+                if (i >= n) break
+                yield node
+                i += 1
+            }
+        }
+        return query
+    }
+
     ins(rel, given_pattern=pattern.Pattern({})){
         const self = this
         const query = new Query(this.graph)
