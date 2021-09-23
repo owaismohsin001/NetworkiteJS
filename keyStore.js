@@ -14,6 +14,11 @@ class KeyStore {
         return this.dir + "/" + file + ".csv"
     }
 
+    *getAllRelations(){
+        const files = fs.readdirSync(this.dir + "/")
+        for (const fn of files) yield fn.slice(0, fn.lastIndexOf(".csv"))
+    }
+
     has(file){
         return fs.existsSync(this.getPath(file))
     }

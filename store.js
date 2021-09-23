@@ -300,7 +300,7 @@ class Query {
         const self = this
         this.generator = function*() {
             const set = new Set()
-            for(const rel in graph.relations) {
+            for(const rel of graph.relations.getAllRelations()) {
                 const whole_graph = graph.findRelation(rel)
                 const keys = whole_graph.edges()
                 for(const k of keys.values()){
