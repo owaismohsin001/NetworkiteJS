@@ -266,9 +266,37 @@ const DFSSide = {
     INCOMING: "INCOMING"
 }
 
+class CumulativeTags {
+    constructor(tags){
+        this.tags = tags
+    }
+
+    addAttribute(k, attr){
+        const strkey = JSON.stringify(k)
+        if (strkey in this.tags) this.tags[strK] = [...this.tags[strK], attr]
+        else this.tags[strkey] = [attr]
+        return attr
+    }
+
+    getAttributes(k){
+        return this.tags[JSON.stringify(k)]
+    }
+
+    matchesOne(k, pattern){
+        const strkey = JSON.stringify(k)
+        if (!(strkey in this.tags)) return false
+        const tags = this.tags[strkey]
+        for(const tag of tags){
+            if (pattern.match(tag)) return true
+        }
+        return false
+    }
+}
+
 class Query {
-    constructor(graph){
+    constructor(graph, tags=new CumulativeTags({})){
         this.graph = graph
+        this.tags = tags
         const self = this
         this.generator = function*() {
             const set = new Set()
@@ -289,7 +317,7 @@ class Query {
 
     v(vertexPattern){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         query.generator = function*() {
             yield self.graph.store.find(vertexPattern)
         }
@@ -298,7 +326,7 @@ class Query {
 
     vs(vertexPattern){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         query.generator = function*() {
             yield* self.graph.store.iterate(vertexPattern)
         }
@@ -313,9 +341,41 @@ class Query {
         return [incoming, outgoing]
     }
 
+    tag(attr){
+        const self = this
+        const query = new Query(this.graph, this.tags)
+        for(const node of self.generator()){
+            query.tags.addAttribute(node, attr)
+        }
+        query.generator = self.generator
+        return query
+    }
+
+    derivedTag(f){
+        const self = this
+        const query = new Query(this.graph, this.tags)
+        for(const node of self.generator()){
+            query.tags.addAttribute(node, f(node))
+        }
+        query.generator = self.generator
+        return query
+    }
+
+    hasTag(pattern){
+        const self = this
+        const query = new Query(this.graph, this.tags)
+        query.generator = function*() {
+            for(const vertex of self.generator()){
+                const p = this.tags.matchesOne(vertex, pattern)
+                if (p) yield vertex
+            }
+        }
+        return query
+    }
+
     dfs(rel, side=DFSSide.BOTH){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         const [incoming, outgoing] = this.boolStateFromDFSSide(side)
         query.generator = function*(){
             for(const vertex of self.generator()){
@@ -331,7 +391,7 @@ class Query {
 
     outs(rel, given_pattern=pattern.Pattern({})){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         query.generator = function*() {
             for(const vertex of self.generator()){
                 const relation = self.graph.findRelation(rel)
@@ -348,7 +408,7 @@ class Query {
 
     take(n){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         let i = 0
         query.generator = function*(){
             for(const node of self.generator()){
@@ -362,7 +422,7 @@ class Query {
 
     ins(rel, given_pattern=pattern.Pattern({})){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         query.generator = function*() {
             for(const vertex of self.generator()){
                 const relation = self.graph.findRelation(rel)
@@ -379,7 +439,7 @@ class Query {
 
     unique(){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         query.generator = function*() {
             const set = new Set()
             for(const vertex of self.generator()){
@@ -392,7 +452,7 @@ class Query {
 
     filter(pattern){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         query.generator = function*() {
             for(const vertex of self.generator()){
                 if (pattern.match(vertex)) yield vertex
@@ -403,7 +463,7 @@ class Query {
 
     relatesTo(rel, given_pattern, side=DFSSide.BOTH){
         const self = this
-        const query = new Query(this.graph)
+        const query = new Query(this.graph, this.tags)
         const [incoming, outgoing] = this.boolStateFromDFSSide(side)
         query.generator = function*() {
             for(const vertex of self.generator()){
@@ -484,9 +544,12 @@ db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "
 const query = db.query()
     .v(pattern.Pattern({name: "Hamid"}))
     .outs("follows")
+    .derivedTag(({name: name}) => {return {immediateFriend: name}})
     .ins("follows")
     .filter(pattern.Pattern({age: pattern.Num(i => i > 18)}))
     .relatesTo("follows", pattern.Pattern({name: "John"}), DFSSide.OUTGONG)
+    .hasTag(pattern.Pattern({immediateFriend: pattern.Str()}))
     .unique()
 
 for(const unit of query.execute()) console.log(unit)
+// console.log(query.tags.tags)
