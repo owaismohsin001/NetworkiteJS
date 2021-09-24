@@ -1,6 +1,7 @@
 "use strict";
 const pattern = require("./pattern.js")
 const rewriter = require("./rewriter.js")
+const layout = require("./layout.js")
 const {RecordFiles} = require("./multifileRecord.js")
 const {KeyStore} = require("./keyStore.js")
 const fs = require("fs")
@@ -272,14 +273,19 @@ class CumulativeTags {
     }
 
     addAttribute(k, attr){
-        const strkey = JSON.stringify(k)
-        if (strkey in this.tags) this.tags[strK] = [...this.tags[strK], attr]
+        const strkey = typeof k == "string" ? k : JSON.stringify(k)
+        if (strkey in this.tags) this.tags[strkey] = [...this.tags[strkey], attr]
         else this.tags[strkey] = [attr]
         return attr
     }
 
     getAttributes(k){
+        if (typeof k == "string") return this.tags[k]
         return this.tags[JSON.stringify(k)]
+    }
+
+    *iterate(){
+        for(const k in this.tags) yield k
     }
 
     matchesOne(k, pattern){
@@ -290,6 +296,17 @@ class CumulativeTags {
             if (pattern.match(tag)) return true
         }
         return false
+    }
+
+    getTagObject(k){
+        const strkey = typeof k == "string" ? k : JSON.stringify(k)
+        if (!(strkey in this.tags)) return null
+        const tags = this.tags[strkey]
+        let obj = {}
+        for(const tag of tags){
+            obj = {...obj, ...tag}
+        }
+        return obj
     }
 }
 
@@ -358,6 +375,14 @@ class Query {
             query.tags.addAttribute(node, f(node))
         }
         query.generator = self.generator
+        return query
+    }
+
+    layout(layout){
+        const nodes = []
+        const newTags = layout(this.graph, this.graph.store.iterate(), this.tags)
+        const query = new Query(this.graph, new CumulativeTags(newTags))
+        query.generator = this.generator
         return query
     }
 
@@ -542,6 +567,8 @@ db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "
 // for (const unit of db.store.iterate()) console.log(unit)
 
 const query = db.query()
+    .vs(pattern.Pattern({}))
+    .layout(layout.simplisticRandomLayout)
     .v(pattern.Pattern({name: "Hamid"}))
     .outs("follows")
     .derivedTag(({name: name}) => {return {immediateFriend: name}})
@@ -552,4 +579,7 @@ const query = db.query()
     .unique()
 
 for(const unit of query.execute()) console.log(unit)
-// console.log(query.tags.tags)
+for(const k of query.tags.iterate()){
+    const r = rewriter.fromObject(query.tags.getTagObject(k))
+    console.log(":: =>", r.rewrite({}))
+}

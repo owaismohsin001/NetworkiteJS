@@ -58,6 +58,18 @@ class TupleRewriter extends ObjectRewriter {
     }
 }
 
+function fromObject(obj){
+    let newObj = {}
+    for(const k in obj){
+        const v = obj[k]
+        if (v instanceof Object) newObj[k] = fromObject(v)
+        else {
+            newObj[k] = Const(v)
+        }
+    }
+    return Rewriter(newObj)
+}
+
 const Id = () => new RewriterFunction(a => a)
 const Const = a => new RewriterFunction(_ => a)
 const Fun = f => new RewriterFunction(f)
@@ -66,4 +78,8 @@ const Arr = patternVar => new WholeArrayRewriter(patternVar)
 const Tup = arr => new TupleRewriter(arr)
 const Cond = (c, t, e) => new RewriterFunction(x => c(x) ? t.rewrite(x) : e.rewrite(x))
 
-module.exports = {Id, Const, Fun, Rewriter, Arr, Tup, Cond, TupleRewriter, RewriterFunction, ObjectRewriter, WholeArrayRewriter}
+module.exports = {
+    Id, Const, Fun, Rewriter, 
+    Arr, Tup, Cond, TupleRewriter, 
+    RewriterFunction, ObjectRewriter, WholeArrayRewriter, fromObject
+}
