@@ -19,6 +19,10 @@ class KeyStore {
         for (const fn of files) yield fn.slice(0, fn.lastIndexOf(".csv"))
     }
 
+    *iterate(){
+        for(const rel of this.getAllRelations()) yield this.get(rel)
+    }
+
     has(file){
         return fs.existsSync(this.getPath(file))
     }

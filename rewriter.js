@@ -5,12 +5,16 @@ class ObjectRewriter {
     }
 
     rewrite(data){
-        let obj = {...data}
+        const obj = {...data}
         for(const k in this.rewriter){
             const rewriter = this.rewriter[k]
-            const val = data[k]
-            const rewritten = rewriter.rewrite(val)
-            obj[k] = rewritten
+            if (k in data){
+                const val = data[k]
+                const rewritten = rewriter.rewrite(val)
+                obj[k] = rewritten
+            } else {
+                obj[k] = rewriter.rewrite(null)
+            }
         }
         return obj
     }
@@ -62,7 +66,8 @@ function fromObject(obj){
     let newObj = {}
     for(const k in obj){
         const v = obj[k]
-        if (v instanceof Object) newObj[k] = fromObject(v)
+        if (v instanceof Array) newObj[k] = Const(v)
+        else if (v instanceof Object) newObj[k] = fromObject(v)
         else {
             newObj[k] = Const(v)
         }

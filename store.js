@@ -509,6 +509,57 @@ class Query {
     }
 }
 
+const generateVisualization = (query, relationName) => {
+    const nodeIds = new Set()
+    const wholeNodes = []
+    const dict = {}
+    const adjacencyList = new Set()
+    const relation = query.graph.relations.get(relationName)
+    
+    for(const k in relation.rels){
+        const vals = relation.rels[k]
+        nodeIds.add(parseInt(k))
+        for(const val of vals.values()) nodeIds.add(val)
+    }
+    
+    for(const id of nodeIds.values()){
+        const node = query.graph.store.index(id)
+        const tags = query.tags.getTagObject(node)
+        const wholeNode = {...node, ...tags}
+        dict[id] = wholeNode
+        wholeNodes.push(wholeNode)
+    }
+    
+    for(const k in relation.rels){
+        const a = parseInt(k)
+        const vals = relation.rels[k]
+        for(const b of vals.values()) adjacencyList.add([dict[a], dict[b]])
+    }
+    
+    let nodeNum = 0
+    const numberedNodes = {}
+
+    const assignedNodes = wholeNodes.map(node => {
+        nodeNum += 1
+        const str = JSON.stringify(node)
+        numberedNodes[str] = `a${nodeNum}`
+        return `const a${nodeNum} = graph.addNode(null, null, new Tags().override(fromObject(${str})))`
+    }).join(";\n") + ";\n\n\n"
+    
+    const adjancencies = [...adjacencyList]
+        .map(([a, b]) => `graph.addEdge(${numberedNodes[JSON.stringify(a)]}, ${numberedNodes[JSON.stringify(b)]})`)
+        .join(";\n")
+        + ";\n"
+    
+    return assignedNodes + adjancencies
+}
+
+const renderQueriedGraph = (query, relationName) => fs.writeFileSync(
+    "./visualizer/script.js",
+    generateVisualization(query, relationName),
+    {encoding:'utf8',flag:'w'}
+)
+
 const db = new Graph("./people")
 // db.add({
 //     name: "Hamid", 
@@ -568,6 +619,7 @@ db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "
 
 const query = db.query()
     .vs(pattern.Pattern({}))
+    .derivedTag(({name: name}) => {return {text: {text: name}}})
     .layout(layout.simplisticRandomLayout)
     .v(pattern.Pattern({name: "Hamid"}))
     .outs("follows")
@@ -579,7 +631,4 @@ const query = db.query()
     .unique()
 
 for(const unit of query.execute()) console.log(unit)
-for(const k of query.tags.iterate()){
-    const r = rewriter.fromObject(query.tags.getTagObject(k))
-    console.log(":: =>", r.rewrite({}))
-}
+// renderQueriedGraph(query, "follows")
