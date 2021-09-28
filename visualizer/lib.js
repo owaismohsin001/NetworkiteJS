@@ -24,9 +24,9 @@ class Tags {
 }
 
 class VisualizationGraph {
-    constructor(){
-        this.nodes = []
-        this.edges = []
+    constructor(nodes=[], edges=[]){
+        this.nodes = nodes
+        this.edges = edges
         this.drawer = new GraphDrawer(this)
     }
 
@@ -65,13 +65,6 @@ class VisualizationGraph {
         this.drawer.draw()
         return shouldRet ? edge : null
     }
-}
-
-function drawCircleArc(c, r, p1, p2, ctx) {
-  var ang1 = Math.atan2(p1.y-c.y, p1.x-c.x);
-  var ang2 = Math.atan2(p2.y-c.y, p2.x-c.x);
-  var clockwise = ( ang1 > ang2);
-  ctx.arc(c.x, c.y, r, ang1, ang2, clockwise);
 }
 
 class GraphDrawer {
@@ -146,18 +139,80 @@ class GraphDrawer {
     }
 }
 
-const graph = new VisualizationGraph()
-
-window.onmousemove = (...args) => graph.drawer.onmousemove(...args)
-window.onmousedown = (...args) => graph.drawer.onmousedown(...args)
-window.onmouseup = (...args) => graph.drawer.onmouseup(...args)
-window.onresize = () => {
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-    graph.drawer.draw()
+const initializeGraph = (nodes=[], edges=[]) => {
+    const graph = new VisualizationGraph(nodes, edges)
+    window.onmousemove = (...args) => graph.drawer.onmousemove(...args)
+    window.onmousedown = (...args) => graph.drawer.onmousedown(...args)
+    window.onmouseup = (...args) => graph.drawer.onmouseup(...args)
+    window.onresize = () => {
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight
+        graph.drawer.draw()
+    }
+    
+    window.onresize()
+    return graph
 }
 
-window.onresize()
+const save = graph => {
+    const edges = graph.edges
+    return JSON.stringify({
+        nodes: graph.nodes.map(node => {
+            node.selected = false
+            return node
+        }),
+        edges: edges.map(edge => {
+            edge.from.selected = false
+            edge.to.selected = false
+            return edge
+        }),
+    }
+)}
+
+const load = saveData => {
+    const parsedData = JSON.parse(saveData)
+    const graph = initializeGraph()
+    const dict = {}
+    for(const node of parsedData.nodes) dict[JSON.stringify(node)] = graph.addNode(null, null, node)
+    for(const edge of parsedData.edges) graph.addEdge(dict[JSON.stringify(edge.from)], dict[JSON.stringify(edge.to)])
+}
+
+const reload = () => load(save(graph))
+
+dropContainer = canvas
+dropContainer.ondragover = dropContainer.ondragenter = e => e.preventDefault()
+
+dropContainer.ondrop = e => {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    const reader = new FileReader()
+    reader.onload = e2 => load(e2.target.result)
+    reader.readAsText(file)
+}
+
+document.onkeydown = function(e) {
+    if (e.ctrlKey && e.keyCode === 83) {
+        e.preventDefault()
+        e.stopPropagation()
+        const options = {
+            suggestedName: 'saveData',
+            types: [
+            {
+                description: 'Save data',
+                accept: {
+                'text/json': ['.json'],
+                },
+            },
+            ],
+        };
+        window.showSaveFilePicker(options).then(handle => {
+            handle.createWritable().then(writer => {
+                writer.write(save(graph))
+                writer.close()
+            })
+        })
+    }
+}
 
 // let x = 0
 // let y = 0

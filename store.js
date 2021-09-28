@@ -515,7 +515,9 @@ const generateVisualization = (query, relationName) => {
     const dict = {}
     const adjacencyList = new Set()
     const relation = query.graph.relations.get(relationName)
-    
+
+    const graphCreation = "const graph = initializeGraph();\n\n"
+
     for(const k in relation.rels){
         const vals = relation.rels[k]
         nodeIds.add(parseInt(k))
@@ -550,8 +552,8 @@ const generateVisualization = (query, relationName) => {
         .map(([a, b]) => `graph.addEdge(${numberedNodes[JSON.stringify(a)]}, ${numberedNodes[JSON.stringify(b)]})`)
         .join(";\n")
         + ";\n"
-    
-    return assignedNodes + adjancencies
+
+    return graphCreation + assignedNodes + adjancencies
 }
 
 const renderQueriedGraph = (query, relationName) => fs.writeFileSync(
@@ -615,8 +617,6 @@ db.link(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Vic
 db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "Laura"}))
 db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "John"}))
 
-// for (const unit of db.store.iterate()) console.log(unit)
-
 const query = db.query()
     .vs(pattern.Pattern({}))
     .derivedTag(({name: name}) => {return {text: {text: name}}})
@@ -631,4 +631,4 @@ const query = db.query()
     .unique()
 
 for(const unit of query.execute()) console.log(unit)
-// renderQueriedGraph(query, "follows")
+renderQueriedGraph(query, "follows")
