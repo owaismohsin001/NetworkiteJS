@@ -49,8 +49,8 @@ class VisualizationGraph {
     addNode(x, y, tags={}, shouldDraw=true) {
         x = x || tags.x
         y = y || tags.y
-        x = Math.min(x, window.innerWidth-50)
-        y = Math.min(y, window.innerHeight-50)
+        x = x >= window.innerWidth ? window.innerWidth-50-randBetween(0, 500) : x
+        y = y >= window.innerHeight ? window.innerHeight-50-randBetween(0, 500) : y
         tags.x = x
         tags.y = y
         const node = this.createNode(x, y, tags)

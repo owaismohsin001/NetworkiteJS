@@ -310,9 +310,10 @@ class CumulativeTags {
 }
 
 class Query {
-    constructor(graph, tags=new CumulativeTags({})){
+    constructor(graph, tags=new CumulativeTags({}), generated=new Set()){
         this.graph = graph
         this.tags = tags
+        this.generated = generated
         const self = this
         this.generator = function*() {
             const set = new Set()
@@ -502,8 +503,38 @@ class Query {
         return query
     }
 
+    intersect(givenQuery){
+        const self = this
+        const query = new Query(this.graph, this.tags)
+        const firstResultSet = new Set()
+        for (const unit of givenQuery.execute()) firstResultSet.add(unit.__relation_id)
+        query.generator = function*() {
+            for(const vertex of self.generator()){
+                if (firstResultSet.has(vertex.__relation_id)) yield vertex
+            }
+        }
+        return query
+    }
+
+    union(givenQuery){
+        const self = this
+        const query = new Query(this.graph, this.tags)
+        query.generator = function*() {
+            for (const unit of givenQuery.execute()) yield unit
+            for(const unit of self.generator()) yield unit
+        }
+        return query
+    }
+
     *execute(){
-        yield* this.generator()
+        if (this.generated.size === 0) {
+            for(const unit of this.generator()){
+                this.generated.add(unit.__relation_id)
+                yield unit
+            }
+        } else {
+            for(const i of this.generated) yield this.graph.store.index(i)
+        }
     }
 }
 
@@ -623,10 +654,10 @@ const query = db.query()
     .outs("follows")
     .derivedTag(({name: name}) => {return {immediateFriend: name}})
     .ins("follows")
-    .filter(pattern.Pattern({age: pattern.Num(i => i > 18)}))
+    .intersect(db.query().vs(pattern.Pattern({age: pattern.Num(i => i > 18)})))
     .relatesTo("follows", pattern.Pattern({name: "John"}), DFSSide.OUTGONG)
     .hasTag(pattern.Pattern({immediateFriend: pattern.Str()}))
     .unique()
 
 for(const unit of query.execute()) console.log(unit)
-renderQueriedGraph(query, "follows")
+// renderQueriedGraph(query, "follows")
