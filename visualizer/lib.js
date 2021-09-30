@@ -32,8 +32,6 @@ class VisualizationGraph {
 
     createNode(x, y, tags={}) {
         return {
-            x: x,
-            y: y,
             selected: false,
             ...tags
         }
@@ -49,6 +47,12 @@ class VisualizationGraph {
     }
 
     addNode(x, y, tags={}, shouldDraw=true) {
+        x = x || tags.x
+        y = y || tags.y
+        x = Math.min(x, window.innerWidth-50)
+        y = Math.min(y, window.innerHeight-50)
+        tags.x = x
+        tags.y = y
         const node = this.createNode(x, y, tags)
         this.nodes.push(node)
         if(shouldDraw) this.drawer.draw()

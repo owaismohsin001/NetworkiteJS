@@ -1,6 +1,7 @@
 "use strict";
 class ObjectRewriter {
     constructor(rewriter){
+        this.requiresArgument = true
         this.rewriter = rewriter
     }
 
@@ -13,7 +14,8 @@ class ObjectRewriter {
                 const rewritten = rewriter.rewrite(val)
                 obj[k] = rewritten
             } else {
-                obj[k] = rewriter.rewrite(null)
+                if (!rewriter.requiresArgument) obj[k] = rewriter.rewrite(null)
+                else throw "No rewrite possible"
             }
         }
         return obj
@@ -21,8 +23,9 @@ class ObjectRewriter {
 }
 
 class RewriterFunction extends ObjectRewriter {
-    constructor(f){
+    constructor(f, constant=true){
         super(null, null)
+        this.requiresArgument = constant
         this.fun = f
     }
 
@@ -76,7 +79,7 @@ function fromObject(obj){
 }
 
 const Id = () => new RewriterFunction(a => a)
-const Const = a => new RewriterFunction(_ => a)
+const Const = x => new RewriterFunction(_ => x, false)
 const Fun = f => new RewriterFunction(f)
 const Rewriter = pattern => new ObjectRewriter(pattern)
 const Arr = patternVar => new WholeArrayRewriter(patternVar)

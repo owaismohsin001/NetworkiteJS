@@ -202,7 +202,6 @@ class Graph {
 
     findRelation(rel){
         if (!(this.relations.has(rel))) return null
-        const d = this.relations.get(rel)
         return this.relations.get(rel)
     }
 
@@ -345,7 +344,7 @@ class Query {
         const self = this
         const query = new Query(this.graph, this.tags)
         query.generator = function*() {
-            yield* self.graph.store.iterate(vertexPattern)
+            yield* self.graph.store.search(vertexPattern)
         }
         return query
     }
@@ -379,7 +378,6 @@ class Query {
     }
 
     layout(layout){
-        const nodes = []
         const newTags = layout(this.graph, this.graph.store.iterate(), this.tags)
         const query = new Query(this.graph, new CumulativeTags(newTags))
         query.generator = this.generator
@@ -611,17 +609,17 @@ db.rewrite(pattern.Pattern({
     favColors: rewriter.Arr(rewriter.Cond(a => a instanceof Array, rewriter.Arr(rewriter.Fun(a => a+1)), rewriter.Id()))
 }))
 
-db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Laura"}))
-db.link(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
-db.link(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
-db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "Laura"}))
-db.link(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "John"}))
+db.linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Laura"}))
+db.linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
+db.linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
+db.linkAll(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "Laura"}))
+db.linkAll(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "John"}))
 
 const query = db.query()
     .vs(pattern.Pattern({}))
     .derivedTag(({name: name}) => {return {text: {text: name}}})
     .layout(layout.simplisticRandomLayout)
-    .v(pattern.Pattern({name: "Hamid"}))
+    .vs(pattern.Pattern({name: "Hamid"}))
     .outs("follows")
     .derivedTag(({name: name}) => {return {immediateFriend: name}})
     .ins("follows")
