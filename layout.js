@@ -8,7 +8,7 @@ const simplisticRandomLayout = (_, nodes, tagObject) => {
     let y = 0
 
     for(const node of nodes){
-        const key = JSON.stringify(node)
+        const key = node.__relation_id
         x+=100
         y+=100
         newAllTags[key] = [...(key in allTags ? allTags[key] : []), {x: x+randBetween(-50, 500), y: y+randBetween(-50, 20)}]

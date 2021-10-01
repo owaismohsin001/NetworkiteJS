@@ -272,15 +272,15 @@ class CumulativeTags {
     }
 
     addAttribute(k, attr){
-        const strkey = typeof k == "string" ? k : JSON.stringify(k)
-        if (strkey in this.tags) this.tags[strkey] = [...this.tags[strkey], attr]
-        else this.tags[strkey] = [attr]
+        const key = typeof k == "number" ? k : k.__relation_id
+        if (key in this.tags) this.tags[key] = [...this.tags[key], attr]
+        else this.tags[key] = [attr]
         return attr
     }
 
     getAttributes(k){
-        if (typeof k == "string") return this.tags[k]
-        return this.tags[JSON.stringify(k)]
+        if (typeof k == "number") return this.tags[k]
+        return this.tags[k.__relation_id]
     }
 
     *iterate(){
@@ -288,9 +288,9 @@ class CumulativeTags {
     }
 
     matchesOne(k, pattern){
-        const strkey = JSON.stringify(k)
-        if (!(strkey in this.tags)) return false
-        const tags = this.tags[strkey]
+        const key = k.__relation_id
+        if (!(key in this.tags)) return false
+        const tags = this.tags[key]
         for(const tag of tags){
             if (pattern.match(tag)) return true
         }
@@ -298,9 +298,9 @@ class CumulativeTags {
     }
 
     getTagObject(k){
-        const strkey = typeof k == "string" ? k : JSON.stringify(k)
-        if (!(strkey in this.tags)) return null
-        const tags = this.tags[strkey]
+        const key = typeof k == "number" ? k : k.__relation_id
+        if (!(key in this.tags)) return null
+        const tags = this.tags[key]
         let obj = {}
         for(const tag of tags){
             obj = {...obj, ...tag}
@@ -590,7 +590,7 @@ const generateVisualization = (query, relationName) => {
         numberedNodes[str] = `a${nodeNum}`
         return `const a${nodeNum} = graph.addNode(null, null, new Tags().override(fromObject(${str})))`
     }).join(";\n") + ";\n\n\n"
-    
+
     const adjancencies = [...adjacencyList]
         .map(([a, b]) => `graph.addEdge(${numberedNodes[JSON.stringify(a)]}, ${numberedNodes[JSON.stringify(b)]})`)
         .join(";\n")
