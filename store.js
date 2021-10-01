@@ -526,6 +526,20 @@ class Query {
         return query
     }
 
+
+    difference(second){
+        const first = this
+        const query = new Query(this.graph, this.tags)
+        const secondRes = new Set()
+        for(const unit of second.execute()) secondRes.add(unit.__relation_id)
+        query.generator = function*() {
+            for (const unit of first.execute()) {
+                if (!secondRes.has(unit.__relation_id)) yield unit
+            }
+        }
+        return query
+    }
+
     *execute(){
         if (this.generated.size === 0) {
             for(const unit of this.generator()){
