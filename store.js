@@ -272,14 +272,14 @@ class CumulativeTags {
     }
 
     addAttribute(k, attr){
-        const key = typeof k == "number" ? k : k.__relation_id
+        const key = typeof k == "number"  || typeof k == "string" ? k : k.__relation_id
         if (key in this.tags) this.tags[key] = [...this.tags[key], attr]
         else this.tags[key] = [attr]
         return attr
     }
 
     getAttributes(k){
-        if (typeof k == "number") return this.tags[k]
+        if (typeof k == "number" || typeof k == "string") return this.tags[k]
         return this.tags[k.__relation_id]
     }
 
@@ -298,7 +298,7 @@ class CumulativeTags {
     }
 
     getTagObject(k){
-        const key = typeof k == "number" ? k : k.__relation_id
+        const key = typeof k == "number"  || typeof k == "string" ? k : k.__relation_id
         if (!(key in this.tags)) return null
         const tags = this.tags[key]
         let obj = {}
@@ -356,6 +356,23 @@ class Query {
         if (side === DFSSide.INCOMING) incoming = true
         if (side === DFSSide.OUTGONG) outgoing = true
         return [incoming, outgoing]
+    }
+
+    fromTag(tagPattern){
+        const self = this
+        const query = new Query(this.graph, this.tags)
+        query.generator = function*(){
+            for(const key in self.tags.tags){
+                const tags = self.tags.getAttributes(key)
+                for(const tag of tags){
+                    if (tagPattern.match(tag)) {
+                        yield self.graph.store.index(parseInt(key))
+                        break
+                    }
+                }
+            }
+        }
+        return query
     }
 
     tag(attr){

@@ -5,6 +5,7 @@ class ObjectPattern {
     }
 
     match(data){
+        if (!(data instanceof Object)) return false
         for(const k in this.pattern){
             if (!(k in data)) return false
             const pattern = this.pattern[k]
