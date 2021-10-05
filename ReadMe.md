@@ -1,5 +1,5 @@
-# GraphiteJS
-GraphiteJs database is a pure JavaScript persistent graph database that has its own query language. It uses the latest ES6 features such as generators, to make itself easier to use and implement. It runs on Nodejs and its primary purpose is to aid scripting since it requires no schema to be present. Any JSON object can be related to any other JSON object with any relational identity although relational identities are required to be strings.
+# NetworkiteJS
+NetworkiteJS database is a pure JavaScript persistent graph database that has its own query language. It uses the latest ES6 features such as generators, to make itself easier to use and implement. It runs on Nodejs and its primary purpose is to aid scripting since it requires no schema to be present. Any JSON object can be related to any other JSON object with any relational identity although relational identities are required to be strings.
 
 ## Insertion and deletion
 ### Insertion
@@ -61,13 +61,13 @@ yields
 So, let's walk through that query, shall we? First, we extract all vertices matching a pattern using the `vs` method, then we call `outs` on it which yields an object that has the direct "follows" relation in the outward direction, and then finally we intersect it with a query that extracts all the followers of an object with the name Laura using exactly the same `outs` query. There are a lot of other queries available that will be documented in near future.
 
 ## Visualization
-The data in GraphiteJS can be visualized with very significant ease. All you have to do is to make a simple query like such.
+The data in NetworkiteJS can be visualized with very significant ease. All you have to do is to make a simple query like such.
 ```
 db.query()
     .derivedTag(({name: name}) => {return {text: {text: name}}})
     .layout(layout.simplisticRandomLayout)
 ```
-The tagging system of the query language is distinct from persistent labels and tags from other graph databases which are not yet implemented in GraphiteJS. The derived tag here takes an object with a name property adds the tag {text: {text: name}} where name is the name property of the object. It is important to note that, you should probably use `vs` to restrict properties that contain "name" although that is not necessary here since every object in this database has the property "name". The layout method then would ask for a layout algorithm. Here we use a simplistic and randomized layout algorithm which is the only one that is implemented at the moment. This would generate something like the following layout(It would be different every time it is generated).
-![Simple Graph Visualization](/images/MutualFriendVisualization.PNG?raw=true "Visualization")
+The tagging system of the query language is distinct from persistent labels and tags from other graph databases which are not yet implemented in NetworkiteJS. The derived tag here takes an object with a name property adds the tag {text: {text: name}} where name is the name property of the object. It is important to note that, you should probably use `vs` to restrict properties that contain "name" although that is not necessary here since every object in this database has the property "name". The layout method then would ask for a layout algorithm. Here we use a simplistic and randomized layout algorithm which is the only one that is implemented at the moment. This would generate something like the following layout(It would be different every time it is generated).
+![Simple Graph Visualization](/images/MutualFriendVisualization.png?raw=true "Visualization")
 
 The visualization provided above can be readjusted and saved with CTRL+S and then loaded by simply dragging and dropping the JSON-based save file onto the browser while the visualizer is open in the browser.
