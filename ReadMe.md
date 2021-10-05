@@ -68,6 +68,6 @@ db.query()
     .layout(layout.simplisticRandomLayout)
 ```
 The tagging system of the query language is distinct from persistent labels and tags from other graph databases which are not yet implemented in NetworkiteJS. The derived tag here takes an object with a name property adds the tag {text: {text: name}} where name is the name property of the object. It is important to note that, you should probably use `vs` to restrict properties that contain "name" although that is not necessary here since every object in this database has the property "name". The layout method then would ask for a layout algorithm. Here we use a simplistic and randomized layout algorithm which is the only one that is implemented at the moment. This would generate something like the following layout(It would be different every time it is generated).
-![Simple Graph Visualization](/images/MutualFriendVisualization.png?raw=true "Visualization")
+![Simple Graph Visualization](/images/MutualFriendVisualization.PNG?raw=true "Visualization")
 
 The visualization provided above can be readjusted and saved with CTRL+S and then loaded by simply dragging and dropping the JSON-based save file onto the browser while the visualizer is open in the browser.
