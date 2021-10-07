@@ -94,7 +94,7 @@ class Relations {
         const set = new Set()
         for(const k in this.rels){
             const val = this.rels[k]
-            const _ = [...val].map(a => set.add([k, this.name, a]))
+            const _ = [...val].map(a => set.add([k, a]))
         }
         return [...set].map(singleRelation => singleRelation.map(a => a.toString()).join(", ")).join("\n")
     }
@@ -103,7 +103,7 @@ class Relations {
         const self = new Relations(name)
         for(const val of str.split("\n")){
             if (val === "") continue
-            const [a, _, b] = val.split(", ")
+            const [a, b] = val.split(", ")
             self.connect(parseInt(a), parseInt(b))
         }
         return self
@@ -189,7 +189,7 @@ class Graph {
     }
 
     haveRelations(dir){
-        return new KeyStore(dir, (n, s) => Relations.fromCSV(n, s), (rel, a, b) => `${a}, ${rel}, ${b}`, s => s.toCSV() + "\n")
+        return new KeyStore(dir, (n, s) => Relations.fromCSV(n, s), (_, a, b) => `${a}, ${b}`, s => s.toCSV() + "\n")
     }
 
     add(obj) { return this.store.add(obj) }
