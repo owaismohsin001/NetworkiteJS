@@ -52,7 +52,10 @@ class RecordFiles {
         while(currentPage <= this.totalPages) {
             const currentFilePath = this.getPath(currentPage)
             const jsonArray = this.readFile(currentFilePath)
-            for(const obj of jsonArray) yield obj
+            for(const obj of jsonArray) {
+                if (Object.keys(obj).length == 0) continue
+                yield obj
+            }
             currentPage += 1
         }
     }
@@ -65,6 +68,10 @@ class RecordFiles {
             let shouldRewrite = false
             let i = 0
             while(i < jsonArray.length) {
+                if (Object.keys(jsonArray[i]) == 0) {
+                    i++
+                    continue
+                }
                 if (pattern.match(jsonArray[i])) {
                     jsonArray[i] = rewriter.rewrite(jsonArray[i])
                     shouldRewrite = true
@@ -101,6 +108,21 @@ class RecordFiles {
         const index = i - (closestPage-1)*this.pageSize
         if (index > contentArray.length) throw `Index ${i.toString()} is out of bounds` 
         return JSON.parse(contentArray[index-1])
+    }
+
+    delete(i){
+        let [lower, upper] = [1, this.totalPages]
+        let closestPage = Math.ceil(i/this.pageSize)
+        if (closestPage > upper || closestPage < lower) throw `Index ${i.toString()} is out of bounds`
+        let fn = this.getPath(closestPage)
+        const contentArray = fs.readFileSync(fn).toString().split("\n").filter(x => x !== "")
+        const index = i - (closestPage-1)*this.pageSize
+        if (index > contentArray.length) throw `Index ${i.toString()} is out of bounds` 
+        const res = JSON.parse(contentArray[index-1])
+        contentArray[index-1] = "{}"
+        const fnContent = contentArray.join("\n") + "\n"
+        fs.writeFileSync(fn, fnContent, {encoding:'utf8',flag:'w'})
+        return res
     }
 }
 

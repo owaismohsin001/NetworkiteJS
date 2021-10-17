@@ -29,6 +29,8 @@ class Store {
         }
     }
 
+    delete(i){ return this.storage.delete(i) }
+
     *search(pattern){
         for(const unit of this.iterate()){
             if (pattern.match(unit)) yield unit
