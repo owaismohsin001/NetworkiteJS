@@ -187,20 +187,12 @@ class Graph {
         this.dir = dir
         this.path = dir + "/store"
         this.store = new Store(this.path)
-        this.relations = this.haveRelations(dir)
-    }
-
-    haveRelations(dir){
-        return new KeyStore(dir, (n, s) => Relations.fromCSV(n, s), (_, a, b) => `${a}, ${b}`, s => s.toCSV() + "\n")
+        this.relations = new KeyStore(dir, (n, s) => Relations.fromCSV(n, s), (_, a, b) => `${a}, ${b}`, s => s.toCSV() + "\n")
     }
 
     add(obj) { return this.store.add(obj) }
     index(i) { return this.store.index(i) }
     rewrite(pattern, rewriter) { return this.store.rewrite(pattern, rewriter) }
-
-    persistentPush(a, rel, b){
-        fs.appendFileSync(this.rel_path, `${a.toString()}, ${rel}, ${b.toString()}\n`)
-    }
 
     findRelation(rel){
         if (!(this.relations.has(rel))) return null
@@ -255,6 +247,11 @@ class Graph {
         const relation = this.relations.get(rel)
         relation.disconnect(id1, id2)
         this.relations.set(rel, relation)
+    }
+
+    delete(i){
+        this.relations.removeAllMentionsOf(i)
+        return this.store.delete(i)
     }
 
     query(){

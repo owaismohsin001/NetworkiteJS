@@ -27,6 +27,21 @@ class KeyStore {
         return fs.existsSync(this.getPath(file))
     }
 
+    removeAllMentionsOf(i){
+        for(const name of this.getAllRelations()){
+            const fn = this.getPath(name)
+            const data = fs.readFileSync(fn).toString().split("\n")
+            const set = new Set()
+            for(const line of data){
+                if (line === "") continue
+                const [a, b] = line.split(", ")
+                if (parseInt(a) === i || parseInt(b) === i) continue
+                set.add(`${a}, ${b}`)
+            }
+            fs.writeFileSync(fn, [...set].join("\n") + "\n", {encoding:'utf8',flag:'w'})
+        }
+    }
+
     get(name){
         const path = this.getPath(name)
         if (!(fs.existsSync(path))) throw `Index out of bounds ${name}`
