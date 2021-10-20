@@ -107,6 +107,7 @@ class RecordFiles {
         const contentArray = fs.readFileSync(this.getPath(closestPage)).toString().split("\n").filter(x => x !== "")
         const index = i - (closestPage-1)*this.pageSize
         if (index > contentArray.length) throw `Index ${i.toString()} is out of bounds` 
+        if (contentArray[index-1] == "{}") throw `Index ${i.toString()} is deleted`
         return JSON.parse(contentArray[index-1])
     }
 
@@ -117,7 +118,8 @@ class RecordFiles {
         let fn = this.getPath(closestPage)
         const contentArray = fs.readFileSync(fn).toString().split("\n").filter(x => x !== "")
         const index = i - (closestPage-1)*this.pageSize
-        if (index > contentArray.length) throw `Index ${i.toString()} is out of bounds` 
+        if (index > contentArray.length) throw `Index ${i.toString()} is out of bounds`
+        if (contentArray[index-1] == "{}") throw `Index ${i.toString()} is already deleted`
         const res = JSON.parse(contentArray[index-1])
         contentArray[index-1] = "{}"
         const fnContent = contentArray.join("\n") + "\n"
