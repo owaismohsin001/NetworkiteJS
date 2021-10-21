@@ -249,9 +249,18 @@ class Graph {
         this.relations.set(rel, relation)
     }
 
-    delete(i){
+    deleteId(i){
         this.relations.removeAllMentionsOf(i)
         return this.store.delete(i)
+    }
+
+    deleteAll(pattern){
+        const ids = new Set()
+        this.rewrite(pattern, new rewriter.RewriterFunction(x => {
+            ids.add(x.__relation_id)
+            return {}
+        }, false))
+        const _ = [...ids].map(i => this.relations.removeAllMentionsOf(i))
     }
 
     query(){
