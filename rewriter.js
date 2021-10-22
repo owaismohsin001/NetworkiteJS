@@ -84,7 +84,7 @@ const Fun = f => new RewriterFunction(f)
 const Rewriter = pattern => new ObjectRewriter(pattern)
 const Arr = patternVar => new WholeArrayRewriter(patternVar)
 const Tup = arr => new TupleRewriter(arr)
-const Cond = (c, t, e) => new RewriterFunction(x => c(x) ? t.rewrite(x) : e.rewrite(x))
+const Cond = (c, t, e) => new RewriterFunction(x => c.match(x) ? t.rewrite(x) : e.rewrite(x))
 
 module.exports = {
     Id, Const, Fun, Rewriter, 
