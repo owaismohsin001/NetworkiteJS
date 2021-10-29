@@ -339,6 +339,15 @@ class Query {
         }
     }
 
+    index(i){
+        const self = this
+        const query = new Query(this.graph, this.tags)
+        query.generator = function*() {
+            yield self.graph.store.index(i)
+        }
+        return query
+    }
+
     v(vertexPattern){
         const self = this
         const query = new Query(this.graph, this.tags)
