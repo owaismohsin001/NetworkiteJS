@@ -265,6 +265,10 @@ class Graph {
     query(){
         return new Query(this)
     }
+
+    write(){
+        return new Writer(this)
+    }
 }
 
 const DFSSide = {
@@ -582,6 +586,63 @@ class Query {
         } else {
             for(const i of this.generated) yield this.graph.store.index(i)
         }
+    }
+}
+
+class Writer {
+    constructor(graph){
+        this.graph = graph
+        this.fun = () => null
+    }
+
+    add(obj){
+        const writer = new Writer(this.graph)
+        writer.fun = () => {
+            this.fun()
+            this.graph.add(obj)
+        }
+        return writer
+    }
+
+    linkAll(p1, rel, p2){
+        const writer = new Writer(this.graph)
+        writer.fun = () => {
+            this.fun()
+            this.graph.linkAll(p1, rel, p2)
+        }
+        return writer
+    }
+
+    rewrite(pattern, rewriter){
+        const writer = new Writer(this.graph)
+        writer.fun = () => {
+            this.fun()
+            this.graph.rewrite(pattern, rewriter)
+        }
+        return writer
+    }
+
+    waitForLock(){
+        const mutexPath = this.graph.dir + "/mutex"
+        while (true){
+            try {
+                fs.writeFileSync(mutexPath, "", { flag: 'wx' })
+                return
+            } catch {
+                continue
+            }
+        }
+    }
+
+    releaseLock(){
+        const mutexPath = this.graph.dir + "/mutex"
+        fs.unlinkSync(mutexPath)
+    }
+
+    execute(){
+        this.waitForLock()
+        this.fun()
+        this.releaseLock()
     }
 }
 

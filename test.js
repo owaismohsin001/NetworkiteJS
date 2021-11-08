@@ -4,59 +4,56 @@ const {DFSSide, Graph, renderQueriedGraph} = require("./store")
 const layout = require("./layout.js")
 
 const db = new Graph("./people")
-// db.add({
-//     name: "Hamid", 
-//     age: 21, 
-//     favColors: [
-//         [0, 128, 0],
-//         [165, 42, 42],
-//         "Yellow"
-//     ]
-// })
-
-// db.add({
-//     name: "John", 
-//     age: 26, 
-//     favColors: [
-//         [255, 165, 0],
-//         [255, 192, 203],
-//         "Violet",
-//         "Taupe"
-//     ]
-// })
-
-// db.add({
-//     name: "Laura", 
-//     age: 12, 
-//     favColors: [
-//         [255, 255, 255],
-//         "Silver",
-//     ]
-// })
-
-// db.add({
-//     name: "Victoria", 
-//     age: 32, 
-//     favColors: [
-//         [128, 0, 128],
-//         [0, 157, 196],
-//     ]
-// })
-
-db.rewrite(pattern.Pattern({
-    name: pattern.Str(),
-    age: pattern.Num(i => i >= 18),
-    favColors: pattern.Arr(pattern.Or(pattern.Tup([pattern.Num(), pattern.Num(), pattern.Num()]), pattern.Str()))
-}), rewriter.Rewriter({
-    age: rewriter.Fun(i => i+1),
-    favColors: rewriter.Arr(rewriter.Cond(pattern.Arr(pattern.Pattern({})), rewriter.Arr(rewriter.Fun(a => a+1)), rewriter.Id()))
-}))
-
-db.linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Laura"}))
-db.linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
-db.linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
-db.linkAll(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "Laura"}))
-db.linkAll(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "John"}))
+db.write()
+    // .add({
+    //     name: "Hamid", 
+    //     age: 21, 
+    //     favColors: [
+    //         [0, 128, 0],
+    //         [165, 42, 42],
+    //         "Yellow"
+    //     ]
+    // })
+    // .add({
+    //     name: "John", 
+    //     age: 26, 
+    //     favColors: [
+    //         [255, 165, 0],
+    //         [255, 192, 203],
+    //         "Violet",
+    //         "Taupe"
+    //     ]
+    // })
+    // .add({
+    //     name: "Laura", 
+    //     age: 12, 
+    //     favColors: [
+    //         [255, 255, 255],
+    //         "Silver",
+    //     ]
+    // })
+    // .add({
+    //     name: "Victoria", 
+    //     age: 32, 
+    //     favColors: [
+    //         [128, 0, 128],
+    //         [0, 157, 196],
+    //     ]
+    // })
+    .rewrite(pattern.Pattern({
+        name: pattern.Str(),
+        age: pattern.Num(i => i >= 18),
+        favColors: pattern.Arr(pattern.Or(pattern.Tup([pattern.Num(), pattern.Num(), pattern.Num()]), pattern.Str()))
+    }), rewriter.Rewriter({
+        age: rewriter.Fun(i => i+1),
+        favColors: rewriter.Arr(rewriter.Cond(pattern.Arr(pattern.Pattern({})), rewriter.Arr(rewriter.Fun(a => a+1)), rewriter.Id()))
+    }))
+    .linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Laura"}))
+    .linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
+    .linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
+    .linkAll(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "Laura"}))
+    .linkAll(pattern.Pattern({name: "Victoria"}), "follows", pattern.Pattern({name: "John"}))
+    .execute()
 
 const query = db.query()
     .vs(pattern.Pattern({}))
