@@ -4,7 +4,7 @@ const {DFSSide, Graph, renderQueriedGraph} = require("./store")
 const layout = require("./layout.js")
 
 const db = new Graph("./people")
-db.write()
+db.writer()
     // .add({
     //     name: "Hamid", 
     //     age: 21, 

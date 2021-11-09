@@ -266,7 +266,7 @@ class Graph {
         return new Query(this)
     }
 
-    write(){
+    writer(){
         return new Writer(this)
     }
 }
@@ -604,6 +604,24 @@ class Writer {
         return writer
     }
 
+    link(p1, rel, p2){
+        const writer = new Writer(this.graph)
+        writer.fun = () => {
+            this.fun()
+            this.graph.link(p1, rel, p2)
+        }
+        return writer
+    }
+
+    unlink(p1, rel, p2){
+        const writer = new Writer(this.graph)
+        writer.fun = () => {
+            this.fun()
+            this.graph.unlinkAll(p1, rel, p2)
+        }
+        return writer
+    }
+
     linkAll(p1, rel, p2){
         const writer = new Writer(this.graph)
         writer.fun = () => {
@@ -612,6 +630,16 @@ class Writer {
         }
         return writer
     }
+
+    unlinkAll(p1, rel, p2){
+        const writer = new Writer(this.graph)
+        writer.fun = () => {
+            this.fun()
+            this.graph.unlinkAll(p1, rel, p2)
+        }
+        return writer
+    }
+
 
     rewrite(pattern, rewriter){
         const writer = new Writer(this.graph)
