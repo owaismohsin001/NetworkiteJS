@@ -604,6 +604,24 @@ class Writer {
         return writer
     }
 
+    deleteId(i){
+        const writer = new Writer(this.graph)
+        writer.fun = () => {
+            this.fun()
+            this.graph.deleteId(i)
+        }
+        return writer
+    }
+
+    deleteAll(pattern){
+        const writer = new Writer(this.graph)
+        writer.fun = () => {
+            this.fun()
+            this.graph.deleteAll(pattern)
+        }
+        return writer
+    }
+
     link(p1, rel, p2){
         const writer = new Writer(this.graph)
         writer.fun = () => {
