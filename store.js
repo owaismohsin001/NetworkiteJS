@@ -4,6 +4,7 @@ const rewriter = require("./rewriter.js")
 const {RecordFiles} = require("./multifileRecord.js")
 const {KeyStore} = require("./keyStore.js")
 const fs = require("fs")
+const emitter = require('events').EventEmitter;
 
 const IS_DEV = (process.env.NODE_ENV || 'development') == 'development'
 
@@ -187,6 +188,9 @@ class Graph {
         this.path = dir + "/store"
         this.store = new Store(this.path)
         this.relations = new KeyStore(dir, (n, s) => Relations.fromCSV(n, s), (_, a, b) => `${a}, ${b}`, s => s.toCSV() + "\n")
+        this.emitter = new emitter()
+        this.emitter.setMaxListeners(0)
+        
     }
 
     add(obj) { return this.store.add(obj) }
@@ -341,21 +345,20 @@ class Query {
                 }
             }
         }
+        this.graph.emitter.addListener("Mutation", _ => this.generated.clear())
     }
 
     index(i){
         const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
+        this.generator = function*() {
             yield self.graph.store.index(i)
         }
-        return query
+        return this
     }
 
     v(vertexPattern){
         const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
+        this.generator = function*() {
             yield self.graph.store.find(vertexPattern)
         }
         return query
@@ -363,11 +366,10 @@ class Query {
 
     vs(vertexPattern){
         const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
+        this.generator = function*() {
             yield* self.graph.store.search(vertexPattern)
         }
-        return query
+        return this
     }
 
     boolStateFromDFSSide(side){
@@ -380,8 +382,7 @@ class Query {
 
     fromTag(tagPattern){
         const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*(){
+        this.generator = function*(){
             for(const key in self.tags.tags){
                 const tags = self.tags.getAttributes(key)
                 for(const tag of tags){
@@ -392,54 +393,48 @@ class Query {
                 }
             }
         }
-        return query
+        return this
     }
 
     tag(attr){
-        const self = this
-        const query = new Query(this.graph, this.tags)
-        for(const node of self.generator()){
-            query.tags.addAttribute(node, attr)
+        for(const node of this.generator()){
+            this.tags.addAttribute(node, attr)
         }
-        query.generator = self.generator
-        return query
+        return this
     }
 
     derivedTag(f){
         const self = this
-        const query = new Query(this.graph, this.tags)
         for(const node of self.generator()){
-            query.tags.addAttribute(node, f(node))
+            this.tags.addAttribute(node, f(node))
         }
-        query.generator = self.generator
-        return query
+        return this
     }
 
     layout(layout){
         const newTags = layout(this.graph, this.graph.store.iterate(), this.tags)
-        const query = new Query(this.graph, new CumulativeTags(newTags))
-        query.generator = this.generator
-        return query
+        this.tags = new CumulativeTags(newTags)
+        return this
     }
 
     hasTag(pattern){
         const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
-            for(const vertex of self.generator()){
-                const p = this.tags.matchesOne(vertex, pattern)
+        const generator = this.generator
+        this.generator = function*() {
+            for(const vertex of generator()){
+                const p = self.tags.matchesOne(vertex, pattern)
                 if (p) yield vertex
             }
         }
-        return query
+        return this
     }
 
     dfs(rel, side=DFSSide.BOTH){
         const self = this
-        const query = new Query(this.graph, this.tags)
+        const generator = this.generator
         const [incoming, outgoing] = this.boolStateFromDFSSide(side)
-        query.generator = function*(){
-            for(const vertex of self.generator()){
+        this.generator = function*(){
+            for(const vertex of generator()){
                 const relation = self.graph.findRelation(rel)
                 if (relation === null) continue
                 for(const related_vertex of relation.dfs(vertex.__relation_id, outgoing, incoming)) {
@@ -447,14 +442,14 @@ class Query {
                 }
             }
         }
-        return query
+        return this
     }
 
     outs(rel, given_pattern=pattern.Pattern({})){
         const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
-            for(const vertex of self.generator()){
+        const generator = this.generator
+        this.generator = function*() {
+            for(const vertex of generator()){
                 const relation = self.graph.findRelation(rel)
                 if (relation === null) continue
                 if(!(vertex.__relation_id in relation.rels)) continue
@@ -464,28 +459,27 @@ class Query {
                 }
             }
         }
-        return query
+        return this
     }
 
     take(n){
-        const self = this
-        const query = new Query(this.graph, this.tags)
+        const generator = this.generator
         let i = 0
-        query.generator = function*(){
-            for(const node of self.generator()){
+        this.generator = function*(){
+            for(const node of generator()){
                 if (i >= n) break
                 yield node
                 i += 1
             }
         }
-        return query
+        return this
     }
 
     ins(rel, given_pattern=pattern.Pattern({})){
         const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
-            for(const vertex of self.generator()){
+        const generator = this.generator
+        this.generator = function*() {
+            for(const vertex of generator()){
                 const relation = self.graph.findRelation(rel)
                 if (relation === null) continue
                 if(!(vertex.__relation_id in relation.invs)) continue
@@ -495,39 +489,37 @@ class Query {
                 }
             }
         }
-        return query
+        return this
     }
 
     unique(){
-        const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
+        const generator = this.generator
+        this.generator = function*() {
             const set = new Set()
-            for(const vertex of self.generator()){
+            for(const vertex of generator()){
                 if (!(set.has(JSON.stringify(vertex)))) yield vertex
                 set.add(JSON.stringify(vertex))
             }
         }
-        return query
+        return this
     }
 
     filter(pattern){
-        const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
-            for(const vertex of self.generator()){
+        const generator = this.generator
+        this.generator = function*() {
+            for(const vertex of generator()){
                 if (pattern.match(vertex)) yield vertex
             }
         }
-        return query
+        return this
     }
 
     relatesTo(rel, given_pattern, side=DFSSide.BOTH){
         const self = this
-        const query = new Query(this.graph, this.tags)
+        const generator = this.generator
         const [incoming, outgoing] = this.boolStateFromDFSSide(side)
-        query.generator = function*() {
-            for(const vertex of self.generator()){
+        this.generator = function*() {
+            for(const vertex of generator()){
                 const relation = self.graph.findRelation(rel)
                 if (relation === null) continue
                 if (relation.relatesTo(
@@ -537,44 +529,41 @@ class Query {
                     )) yield vertex
             }
         }
-        return query
+        return this
     }
 
     intersect(givenQuery){
-        const self = this
-        const query = new Query(this.graph, this.tags)
+        const generator = this.generator
         const firstResultSet = new Set()
         for (const unit of givenQuery.execute()) firstResultSet.add(unit.__relation_id)
-        query.generator = function*() {
-            for(const vertex of self.generator()){
+        this.generator = function*() {
+            for(const vertex of generator()){
                 if (firstResultSet.has(vertex.__relation_id)) yield vertex
             }
         }
-        return query
+        return this
     }
 
     union(givenQuery){
-        const self = this
-        const query = new Query(this.graph, this.tags)
-        query.generator = function*() {
+        const generator = this.generator
+        this.generator = function*() {
             for (const unit of givenQuery.execute()) yield unit
-            for(const unit of self.generator()) yield unit
+            for(const unit of generator()) yield unit
         }
-        return query
+        return this
     }
 
 
     difference(second){
-        const first = this
-        const query = new Query(this.graph, this.tags)
+        const firstGenerator = this.generator
         const secondRes = new Set()
         for(const unit of second.execute()) secondRes.add(unit.__relation_id)
-        query.generator = function*() {
-            for (const unit of first.execute()) {
+        this.generator = function*() {
+            for (const unit of firstGenerator()) {
                 if (!secondRes.has(unit.__relation_id)) yield unit
             }
         }
-        return query
+        return this
     }
 
     *execute(){
@@ -668,7 +657,7 @@ class Writer {
         return writer
     }
 
-    waitForLock(){
+    waitForLockAndAquire(){
         const mutexPath = this.graph.dir + "/mutex"
         while (true){
             try {
@@ -686,7 +675,8 @@ class Writer {
     }
 
     execute(){
-        this.waitForLock()
+        this.graph.emitter.emit("Mutation")
+        this.waitForLockAndAquire()
         this.fun()
         this.releaseLock()
     }
