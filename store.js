@@ -582,79 +582,48 @@ class Writer {
     constructor(graph){
         this.graph = graph
         this.fun = () => null
+        this.actions = []
     }
 
     add(obj){
-        const writer = new Writer(this.graph)
-        writer.fun = () => {
-            this.fun()
-            this.graph.add(obj)
-        }
-        return writer
+        this.actions.push(() => this.graph.add(obj))
+        return this
     }
 
     deleteId(i){
-        const writer = new Writer(this.graph)
-        writer.fun = () => {
-            this.fun()
-            this.graph.deleteId(i)
-        }
-        return writer
+        this.actions.push(() => this.graph.deleteId(i))
+        return this
     }
 
     deleteAll(pattern){
-        const writer = new Writer(this.graph)
-        writer.fun = () => {
-            this.fun()
-            this.graph.deleteAll(pattern)
-        }
-        return writer
+        this.actions.push(() => this.graph.deleteAll(pattern))
+        return this
     }
 
     link(p1, rel, p2){
-        const writer = new Writer(this.graph)
-        writer.fun = () => {
-            this.fun()
-            this.graph.link(p1, rel, p2)
-        }
-        return writer
+        this.actions.push(() => this.graph.link(p1, rel, p2))
+        return this
     }
 
     unlink(p1, rel, p2){
-        const writer = new Writer(this.graph)
-        writer.fun = () => {
-            this.fun()
-            this.graph.unlinkAll(p1, rel, p2)
-        }
-        return writer
+        this.actions.push(() => this.graph.unlink(p1, rel, p2))
+        return this
     }
 
     linkAll(p1, rel, p2){
-        const writer = new Writer(this.graph)
-        writer.fun = () => {
-            this.fun()
-            this.graph.linkAll(p1, rel, p2)
-        }
-        return writer
+        this.actions.push(() => this.graph.linkAll(p1, rel, p2))
+        return this
     }
 
     unlinkAll(p1, rel, p2){
-        const writer = new Writer(this.graph)
-        writer.fun = () => {
-            this.fun()
-            this.graph.unlinkAll(p1, rel, p2)
-        }
-        return writer
+        this.actions.push(() => this.graph.unlinkAll(p1, rel, p2))
+        return this
     }
 
 
     rewrite(pattern, rewriter){
-        const writer = new Writer(this.graph)
-        writer.fun = () => {
-            this.fun()
-            this.graph.rewrite(pattern, rewriter)
-        }
-        return writer
+        this.actions.push(() => this.graph.rewrite(pattern, rewriter))
+        return this
     }
 
     waitForLockAndAquire(){
@@ -677,7 +646,9 @@ class Writer {
     execute(){
         this.graph.emitter.emit("Mutation")
         this.waitForLockAndAquire()
-        this.fun()
+        for(const action of this.actions){
+            action()
+        }
         this.releaseLock()
     }
 }
