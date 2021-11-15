@@ -66,6 +66,7 @@ class TuplePattern extends ObjectPattern {
 const Any = () => new PatternFunction(_ => true)
 const Num = (f = _ => true) => new PatternFunction(d => typeof d === "number" && f(d))
 const Str = (f = _ => true) => new PatternFunction(d => typeof d === "string" && f(d))
+const RegEx = regEx => Str(d => regEx.exec(d) != undefined)
 const Pattern = pattern => new ObjectPattern(pattern)
 const Arr = patternVar => new WholeArrayPattern(patternVar)
 const Tup = arr => new TuplePattern(arr)
@@ -89,4 +90,4 @@ const Or = (fa, fb) => new PatternFunction(d => fa.match(d) || fb.match(d))
 //     })
 // )
 
-module.exports = {Any, Num, Str, Pattern, Arr, Tup, Or, TuplePattern, ObjectPattern, PatternFunction, WholeArrayPattern}
+module.exports = {Any, Num, Str, RegEx, Pattern, Arr, Tup, Or, TuplePattern, ObjectPattern, PatternFunction, WholeArrayPattern}
