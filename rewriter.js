@@ -81,6 +81,7 @@ function fromObject(obj){
 const Id = () => new RewriterFunction(a => a)
 const Const = x => new RewriterFunction(_ => x, false)
 const Fun = f => new RewriterFunction(f)
+const FunConst = f => new RewriterFunction(f, true)
 const Rewriter = pattern => new ObjectRewriter(pattern)
 const Arr = patternVar => new WholeArrayRewriter(patternVar)
 const Tup = arr => new TupleRewriter(arr)
@@ -89,5 +90,6 @@ const Cond = (c, t, e) => new RewriterFunction(x => c.match(x) ? t.rewrite(x) : 
 module.exports = {
     Id, Const, Fun, Rewriter, 
     Arr, Tup, Cond, TupleRewriter, 
-    RewriterFunction, ObjectRewriter, WholeArrayRewriter, fromObject
+    RewriterFunction, ObjectRewriter, WholeArrayRewriter, fromObject,
+    FunConst
 }

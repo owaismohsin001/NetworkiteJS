@@ -682,14 +682,13 @@ const generateVisualization = (query, relationName) => {
         for(const b of vals.values()) adjacencyList.add([dict[a], dict[b]])
     }
     
-    let nodeNum = 0
     const numberedNodes = {}
 
-    const assignedNodes = wholeNodes.map(node => {
-        nodeNum += 1
-        const str = JSON.stringify(node)
-        numberedNodes[str] = `a${nodeNum}`
-        return `const a${nodeNum} = graph.addNode(null, null, new Tags().override(fromObject(${str})))`
+    const assignedNodes = wholeNodes.map((node, i) => {
+        const nodeNum = i+1
+        const objStr = JSON.stringify(node)
+        numberedNodes[objStr] = `a${nodeNum}`
+        return `const a${nodeNum} = graph.addNode(null, null, new Tags().override(fromObject(${objStr})))`
     }).join(";\n") + ";\n\n\n"
 
     const adjancencies = [...adjacencyList]
