@@ -2,10 +2,19 @@
 NetworkiteJS database is a pure JavaScript persistent graph database that has its own query language. It uses the latest ES6 features such as generators, to make itself easier to use and implement. It runs on Nodejs and its primary purpose is to aid scripting since it requires no schema to be present. Any JSON object can be related to any other JSON object with any relational identity although relational identities are required to be strings.
 
 ## Insertion and deletion
+### Database Writes
+Here's how a write API can be initialized, chained, and executed
+```
+db.writer()
+    .add({name: "Simon"})
+    .add({name: "Jonathan"})
+    .execute()
+```
+
 ### Insertion
 Here's how you insert a JSON object into the database
 ```
-db.add({
+db.writer().add({
     name: "John", 
     age: 26, 
     favColors: [
@@ -14,11 +23,11 @@ db.add({
         "Violet",
         "Taupe"
     ]
-})
+}).execute()
 ```
 This JSON object will also be assigned a `__relation_id` field automatically which should, in most cases be irrelevant but can come in handy when fast access is required. Here's how you'd create a relation.
 ```
-db.link(pattern.Pattern({name: "John"}), "follows", pattern.Pattern({name: "Laura"}))
+db.writer().link(pattern.Pattern({name: "John"}), "follows", pattern.Pattern({name: "Laura"})).execute()
 ```
 You can use the method `linkAll` to link everything matching a pattern. Patterns will be discussed in greater lengths later but just to have everyone on the same page, patterns allow us to partially specify an object in a generic way, which can be matched against every object that has the given pattern. For instance, the aforementioned "John" object would match the first pattern given to the `link` method since it has a field named "name" containing the value "John".
 
@@ -35,13 +44,14 @@ const query = db.query()
 ```
 which on the following dataset
 ```
-db.linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
-db.linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "John"}))
-db.linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Williams"}))
-
-db.linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
-db.linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Williams"}))
-db.linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Hamid"}))
+db.writer()
+    .linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Victoria"}))
+    .linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "John"}))
+    .linkAll(pattern.Pattern({name: "Hamid"}), "follows", pattern.Pattern({name: "Williams"}))
+    .linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Victoria"}))
+    .linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Williams"}))
+    .linkAll(pattern.Pattern({name: "Laura"}), "follows", pattern.Pattern({name: "Hamid"}))
+    .execute()
 ```
 yields 
 ```
